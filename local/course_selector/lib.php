@@ -470,8 +470,7 @@ abstract class course_selector_base {
         }
 
         // Add some additional sensible conditions.
-        if (!iomad::has_capability('moodle/course:viewhiddencourses', context_system::instance()) &&
-            !iomad::has_capability('moodle/course:viewhiddencourses', context_company::instance(iomad::get_my_companyid(context_system::instance())))) {
+        if (!iomad::has_capability('moodle/course:viewhiddencourses', context_system::instance())) {
             $tests[] = $u . 'visible = 1';
         }
 
