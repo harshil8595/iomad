@@ -560,7 +560,7 @@ if ($mform->is_cancelled()) {
         }
 
         // Deal with email templates.
-        if (!empty($data->emailtemplate) && iomad::has_capability('local/email:edit', $companycontext)) {
+        if (!empty($data->emailtemplate) && iomad::has_capability('local/email:edit', $systemcontext)) {
             // We need to do something with the email templates.
             $company->apply_email_templates($data->emailtemplate);
         }
