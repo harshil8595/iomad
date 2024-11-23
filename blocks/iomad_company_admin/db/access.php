@@ -209,7 +209,7 @@ $capabilities = array(
     'block/iomad_company_admin:company_edit_restricted' => array(
 
         'captype' => 'write',
-        'contextlevel' => CONTEXT_COMPANY,
+        'contextlevel' => CONTEXT_BLOCK,
         'archetypes' => array(
             'clientadministrator' => CAP_ALLOW
         ),
@@ -296,7 +296,7 @@ $capabilities = array(
     'block/iomad_company_admin:delegatecourse' => array(
 
         'captype' => 'write',
-        'contextlevel' => CONTEXT_COMPANY,
+        'contextlevel' => CONTEXT_BLOCK,
         'archetypes' => array(
             'clientadministrator' => CAP_ALLOW
         ),
