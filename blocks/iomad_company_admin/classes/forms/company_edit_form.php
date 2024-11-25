@@ -203,7 +203,7 @@ class company_edit_form extends \company_moodleform {
         $mform->addHelpButton('companydomains', 'companydomains', 'block_iomad_company_admin');
 
         // Max users is restricted.
-        if (iomad::has_capability('block/iomad_company_admin:company_edit_restricted', $this->context)) {
+        if (iomad::has_capability('block/iomad_company_admin:company_edit_restricted', $context)) {
             $mform->addElement('text', 'maxusers', get_string('companymaxusers', 'block_iomad_company_admin'));
             $mform->addHelpButton('maxusers', 'companymaxusers', 'block_iomad_company_admin');
 
@@ -280,7 +280,7 @@ class company_edit_form extends \company_moodleform {
         }
 
         // Valid to and suspend after are restricted.
-        if (iomad::has_capability('block/iomad_company_admin:company_edit_restricted', $this->context) && false) {
+        if (iomad::has_capability('block/iomad_company_admin:company_edit_restricted', $context) && false) {
             $mform->addElement('date_time_selector', 'validto', get_string('companyvalidto', 'block_iomad_company_admin'), array('optional' => true));
             $mform->addElement('duration', 'suspendafter', get_string('companyterminateafter', 'block_iomad_company_admin'));
             $mform->addHelpButton('validto', 'companyvalidto', 'block_iomad_company_admin');
