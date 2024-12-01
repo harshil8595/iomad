@@ -899,7 +899,7 @@ class external extends external_api {
         }
         $companyid = \iomad::get_my_companyid($systemcontext);
         if ($companyid > 0) {
-            $companycontext = \core\context\company::instance($companyid);
+            $companycontext = $systemcontext;
             $company = new \company($companyid);
             $userlevel = $company->get_userlevel($USER);
             $departmentid = key($userlevel);
