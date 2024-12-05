@@ -200,7 +200,3 @@ if ($createdok) {
 $mform->display();
 
 echo $output->footer();
-<<<<<<< HEAD
-
-=======
->>>>>>> 2be40d0ac60 (IOMAD: Creating a department manager with a department selected throws in index error - closes #2076)
