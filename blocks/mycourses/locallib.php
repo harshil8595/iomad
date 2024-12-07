@@ -23,18 +23,10 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-function mycourses_get_my_completion($datefrom = 0, $sort = 'coursefullname', $dir = 'ASC') {
+function mycourses_get_my_completion($sort = 'coursefullname', $dir = 'ASC') {
     global $DB, $USER, $CFG;
 
     $companyid = iomad::get_my_companyid(context_system::instance(), false);
-
-    // Do we need to tie courses down to only my company courses?
-    $companycoursesql = "";
-    if (!empty($companyid)) {
-        $company = new company($companyid);
-        $companycourses = $company->get_menu_courses(true);
-        $companycoursesql = "AND cc.courseid IN (" . join(',', array_keys($companycourses)) . ")";
-    } 
 
     // Check if there is a iomadcertificate module.
     if ($certmodule = $DB->get_record('modules', array('name' => 'iomadcertificate'))) {
@@ -45,26 +37,18 @@ function mycourses_get_my_completion($datefrom = 0, $sort = 'coursefullname', $d
     }
 
     $mycompletions = new stdclass();
-    $mycompleted = $DB->get_records_sql("SELECT DISTINCT cc.id, cc.userid, cc.courseid as courseid, cc.finalscore as finalgrade, cc.timecompleted, cc.timestarted, c.fullname as coursefullname, c.summary as coursesummary, c.visible, ic.hasgrade
-                                       FROM {local_iomad_track} cc
-                                       JOIN {course} c ON (c.id = cc.courseid)
-                                       JOIN {iomad_courses} ic ON (c.id = ic.courseid and cc.courseid = ic.courseid)
-                                       WHERE cc.userid = :userid
-                                       $companycoursesql
-                                       AND cc.timecompleted IS NOT NULL",
-                                       array('userid' => $USER->id));
-    $myinprogress = $DB->get_records_sql("SELECT DISTINCT cc.id, cc.userid, cc.courseid as courseid, c.fullname as coursefullname, c.summary as coursesummary, c.visible, ic.hasgrade, cc.timestarted, cc.modifiedtime
+    $myinprogress = $DB->get_records_sql("SELECT DISTINCT cc.id, cc.userid, cc.courseid as courseid, cc.coursename as coursefullname, c.summary as coursesummary, c.visible, ic.hasgrade, cc.timestarted, cc.modifiedtime
                                           FROM {local_iomad_track} cc
-                                          JOIN {course} c ON (c.id = cc.courseid)
-                                          JOIN {user_enrolments} ue ON (ue.userid = cc.userid)
-                                          JOIN {enrol} e ON (e.id = ue.enrolid AND e.courseid = c.id)
+                                          LEFT JOIN {course} c ON (c.id = cc.courseid)
+                                          LEFT JOIN {user_enrolments} ue ON (ue.userid = cc.userid)
+                                          LEFT JOIN {enrol} e ON (e.id = ue.enrolid AND e.courseid = c.id)
                                           LEFT JOIN {iomad_courses} ic ON (c.id = ic.courseid AND cc.courseid = ic.courseid)
                                           WHERE cc.userid = :userid
-                                          $companycoursesql
-                                          AND c.visible = 1
+                                          AND cc.companyid = :companyid
                                           AND cc.timecompleted IS NULL
-                                          AND ue.timestart != 0",
-                                          array('userid' => $USER->id));
+                                          AND cc.timestarted > 0",
+                                          ['userid' => $USER->id,
+                                           'companyid' => $companyid]);
 
     // We need to de-duplicate this list.
     $recs = [];
@@ -85,15 +69,17 @@ function mycourses_get_my_completion($datefrom = 0, $sort = 'coursefullname', $d
                                           FROM {companylicense_users} clu
                                           JOIN {course} c ON (c.id = clu.licensecourseid)
                                           WHERE clu.userid = :userid
-                                          AND c.visible = 1
                                           AND clu.isusing = 0",
-                                          array('userid' => $USER->id));
+                                          ['userid' => $USER->id,
+                                           'companyid' => $companyid]);
 
     // Get courses which are available as self sign up and assigned to the company.
     // First we discount everything else we have in progress.
     $myusedcourses = array();
     foreach ($myinprogress as $id => $inprogress) {
-        $myinprogress[$id]->coursefullname = format_string($inprogress->coursefullname);
+        if (!empty($myinprogress->courseid)) {
+            $myinprogress[$id]->coursefullname = format_string($inprogress->coursefullname, true, ['context' => context_course::instance($inprogress->courseid)]);
+        }
         $myusedcourses[$inprogress->courseid] = $inprogress->courseid;
         if (empty($inprogress->hasgrade)) {
             $myinprogress[$id]->finalgrade = "";
@@ -107,7 +93,7 @@ function mycourses_get_my_completion($datefrom = 0, $sort = 'coursefullname', $d
     $myselfenrolcourses = array();
     $myavailablecourses = array();
     if (!empty($companyid)) {
-        $companyselfenrolcourses = $DB->get_records_sql("SELECT e.id,e.courseid,c.fullname as coursefullname, c.summary as coursesummary
+        $companyselfenrolcourses = $DB->get_records_sql("SELECT e.id,e.courseid,c.fullname as coursefullname, c.summary as coursesummary, c.visible
                                                          FROM {enrol} e
                                                          JOIN {course} c ON (e.courseid = c.id)
                                                          WHERE e.enrol = :enrol
@@ -115,11 +101,10 @@ function mycourses_get_my_completion($datefrom = 0, $sort = 'coursefullname', $d
                                                          AND c.id IN (
                                                            SELECT courseid FROM {company_course}
                                                            WHERE companyid = :companyid)
-                                                         AND c.visible = 1
                                                          $inprogresssql",
                                                          array('companyid' => $companyid,
                                                                'enrol' => 'self'));
-        $sharedselfenrolcourses = $DB->get_records_sql("SELECT e.id,e.courseid,c.fullname as coursefullname, c.summary as coursesummary
+        $sharedselfenrolcourses = $DB->get_records_sql("SELECT e.id,e.courseid,c.fullname as coursefullname, c.summary as coursesummary, c.visible
                                                         FROM {enrol} e
                                                         JOIN {course} c ON (e.courseid = c.id)
                                                         WHERE e.enrol = :enrol
@@ -127,15 +112,14 @@ function mycourses_get_my_completion($datefrom = 0, $sort = 'coursefullname', $d
                                                          AND c.id IN (
                                                            SELECT courseid FROM {iomad_courses}
                                                            WHERE shared = 1)
-                                                         AND c.visible = 1
                                                         $inprogresssql",
                                                         array('enrol' => 'self'));
         foreach ($companyselfenrolcourses as $companyselfenrolcourse) {
-            $companyselfenrolcourse->coursefullname = format_string($companyselfenrolcourse->coursefullname);
+            $companyselfenrolcourse->coursefullname = format_string($companyselfenrolcourse->coursefullname, true, ['context' => context_course::instance($companyselfenrolcourse->courseid)]);
             $myavailablecourses[$companyselfenrolcourse->coursefullname] = $companyselfenrolcourse;
         }
         foreach ($sharedselfenrolcourses as $sharedselfenrolcourse) {
-            $sharedselfenrolcourse->coursefullname = format_string($sharedselfenrolcourse->coursefullname);
+            $sharedselfenrolcourse->coursefullname = format_string($sharedselfenrolcourse->coursefullname, true, ['context' => context_course::instance($sharedselfenrolcourse->courseid)]);
             $myavailablecourses[$sharedselfenrolcourse->coursefullname] = $sharedselfenrolcourse;
         }
         // Check if there are any courses from 'blanket' licenses.
@@ -157,51 +141,20 @@ function mycourses_get_my_completion($datefrom = 0, $sort = 'coursefullname', $d
                 }
             }
             foreach ($blanketcourses as $blanketcourse) {
-                $blanketcourse->fullname = format_string($blanketcourse->coursefullname);
+                $blanketcourse->fullname = format_string($blanketcourse->coursefullname, true, ['context' => context_course::instance($blanketcourse->courseid)]);
                 $myavailablecourses[$blanketcourse->coursefullname] = $blanketcourse;
             }
         }
     }
     foreach($mynotstartedlicense as $licensedcourse) {
-        $licensedcourse->coursefullname = format_string($licensedcourse->coursefullname);
+        $licensedcourse->coursefullname = format_string($licensedcourse->coursefullname, true, ['context' => context_course::instance($licensedcourse->courseid)]);
         $myavailablecourses[$licensedcourse->coursefullname] = $licensedcourse;
-    }
-
-    // Deal with completed course scores and links for certificates.
-    foreach ($mycompleted as $id => $completed) {
-        $mycompleted[$id]->coursefullname = format_string($completed->coursefullname);
-        $mycompleted[$id]->certificates = array();
-        $mycompleted[$id]->hasgrade = $completed->hasgrade;
-        if (empty($completed->hasgrade)) {
-            $mycompleted[$id]->finalgrade = "";
-        }
-        // Deal with the iomadcertificate info.
-        if ($hasiomadcertificate) {
-            if ($iomadcertificateinfo = $DB->get_record('iomadcertificate',
-                                                         array('course' => $completed->courseid))) {
-                $coursecontext = context_course::instance($completed->courseid);
-                // Get the certificate from the download files thing.
-                $certificates = array();
-                if ($traccertrecs = $DB->get_records('local_iomad_track_certs', array('trackid' => $id))) {
-                    foreach ($traccertrecs as $traccertrec) {
-                        $certout = new stdclass();
-                        // create the file download link.
-                        $certout->certificateurl = moodle_url::make_file_url('/pluginfile.php', '/'.$coursecontext->id.'/local_iomad_track/issue/'.$traccertrec->trackid.'/'.$traccertrec->filename);
-                        $certout->certificatename = format_string($traccertrec->filename);
-                        $certificates[] = $certout;
-                    }
-                }
-                $mycompleted[$id]->certificates = $certificates;
-            }
-        }
     }
 
     // Put them into alpahbetical order.
     $myavailablecourses = mycourses_sort($myavailablecourses, 'coursefullname', $dir);
     $myinprogress = mycourses_sort($myinprogress, $sort, $dir);
-    $mycompleted = mycourses_sort($mycompleted, $sort, $dir);
 
-    $mycompletions->mycompleted = $mycompleted;
     $mycompletions->myinprogress = $myinprogress;
     $mycompletions->mynotstartedenrolled = array();
     $mycompletions->mynotstartedlicense = $myavailablecourses;
@@ -210,8 +163,10 @@ function mycourses_get_my_completion($datefrom = 0, $sort = 'coursefullname', $d
 
 }
 
-function mycourses_get_my_archive($dateto = 0) {
+function mycourses_get_my_archive($sort = 'coursefullname', $dir = 'ASC') {
     global $DB, $USER, $CFG;
+
+    $companyid = iomad::get_my_companyid(context_system::instance(), false);
 
     // Check if there is a iomadcertificate module.
     if ($certmodule = $DB->get_record('modules', array('name' => 'iomadcertificate'))) {
@@ -222,17 +177,22 @@ function mycourses_get_my_archive($dateto = 0) {
     }
 
     $mycompletions = new stdclass();
-    $myarchive = $DB->get_records_sql("SELECT cc.id, cc.userid, cc.courseid as courseid, cc.finalscore as finalgrade, c.fullname as coursefullname, c.summary as coursesummary
+    $myarchive = $DB->get_records_sql("SELECT cc.id, cc.userid, cc.courseid as courseid, cc.finalscore as finalgrade, cc.timecompleted, cc.timestarted, cc.coursename as coursefullname, c.summary as coursesummary, c.visible
                                        FROM {local_iomad_track} cc
-                                       JOIN {course} c ON (c.id = cc.courseid)
+                                       LEFT JOIN {course} c ON (c.id = cc.courseid)
                                        WHERE cc.userid = :userid
-                                       AND c.visible = 1
-                                       AND cc.timecompleted <= :dateto",
-                                       array('userid' => $USER->id, 'dateto' => $dateto));
+                                       AND cc.companyid = :companyid
+                                       AND cc.timecompleted > 0",
+                                      ['userid' => $USER->id,
+                                       'companyid' => $companyid]);
 
     // Deal with completed course scores and links for certificates.
     foreach ($myarchive as $id => $archive) {
-	$myarchive[$id]->coursefullname = format_string($archive->coursefullname);
+       if (!empty($marchive->courseid)) {
+           $myarchive[$id]->coursefullname = format_string($archive->coursefullname, true, ['context' => context_course::instance($archive->courseid)]);
+       }
+       $certstring = '';
+
         // Deal with the iomadcertificate info.
         if ($hasiomadcertificate) {
             if ($iomadcertificateinfo = $DB->get_record('iomadcertificate',
@@ -241,11 +201,6 @@ function mycourses_get_my_archive($dateto = 0) {
                 if ($traccertrec = $DB->get_record('local_iomad_track_certs', array('trackid' => $id))) {
                     // create the file download link.
                     $coursecontext = context_course::instance($archive->courseid);
-/*                    $certstring = "<a class=\"btn btn-info\" href='".
-                                   moodle_url::make_file_url('/pluginfile.php', '/'.$coursecontext->id.'/local_iomad_track/issue/'.$traccertrec->trackid.'/'.$traccertrec->filename) .
-                                  "'>" . get_string('downloadcert', 'block_mycourses').
-                                  "</a>";
-*/
                     $certstring = moodle_url::make_file_url('/pluginfile.php', '/'.$coursecontext->id.'/local_iomad_track/issue/'.$traccertrec->trackid.'/'.$traccertrec->filename);
                 }
             } else {
@@ -259,7 +214,8 @@ function mycourses_get_my_archive($dateto = 0) {
 
     }
 
-    $mycompletions->myarchive = $myarchive;
+    $myarchive = mycourses_sort($myarchive, $sort, $dir);
+    $mycompletions->mycompleted = $myarchive;
 
     return $mycompletions;
 }
@@ -267,7 +223,7 @@ function mycourses_get_my_archive($dateto = 0) {
 function mycourses_sort($courselist, $sorton = 'timestarted', $direction = "ASC") {
     $namedcourses = [];
     foreach ($courselist as $id => $course) {
-        $namedcourses[$course->$sorton] = $courselist[$id];
+        $namedcourses[$course->$sorton . $id] = $courselist[$id];
     }
     if ($direction == "ASC") {
         ksort($namedcourses, SORT_NATURAL | SORT_FLAG_CASE);

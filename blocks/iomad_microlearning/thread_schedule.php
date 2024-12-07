@@ -64,13 +64,13 @@ $companyid = iomad::get_my_companyid($context);
 
 // Check the thread is valid.
 if (!$threadinfo = $DB->get_record('microlearning_thread', array('id' => $threadid))) {
-    print_error('invalidthread', 'block_iomad_microlearning');
+    throw new moodle_exception('invalidthread', 'block_iomad_microlearning');
 }
 
 if ($deleteid && confirm_sesskey() && $confirm == md5($deleteid)) {
     // Check the thread is valid.
     if (!$threadinfo = $DB->get_record('microlearning_thread', array('id' => $threadid))) {
-        print_error('invalidthread', 'block_iomad_microlearning');
+        throw new moodle_exception('invalidthread', 'block_iomad_microlearning');
     }
 
     // Get the list of thread ids which are to be removed..
@@ -97,6 +97,7 @@ if ($editform->is_cancelled()) {
     redirect($threadlist);
     die;
 }
+
 if ($scheduledata = $editform->get_data()) {
 
     // Are we resetting the schedules to default?
@@ -115,6 +116,14 @@ if ($scheduledata = $editform->get_data()) {
     // Update the schedules.
     microlearning::update_thread_schedule($scheduledata);
     $redirectmessage = get_string('threadscheduleupdatedok', 'block_iomad_microlearning');
+    redirect($threadlist, $redirectmessage, null, \core\output\notification::NOTIFY_SUCCESS);
+    die;
+}
+// Trap if we are resetting the schedule.
+if (!empty($threadid) &!empty($deleteid) && $confirm ==  md5($threadid) && confirm_sesskey()) {
+    $threadinfo = $DB->get_record('microlearning_thread', ['id' => $threadid], '*', MUST_EXIST);
+    microlearning::reset_thread_schedule($threadinfo);
+    $redirectmessage = get_string('threadscheduleresetok', 'block_iomad_microlearning');
     redirect($threadlist, $redirectmessage, null, \core\output\notification::NOTIFY_SUCCESS);
     die;
 }

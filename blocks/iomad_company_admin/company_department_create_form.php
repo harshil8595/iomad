@@ -58,9 +58,6 @@ $output = $PAGE->get_renderer('block_iomad_company_admin');
 
 // Set the page heading.
 $PAGE->set_heading(get_string('myhome') . " - $linktext");
-if (empty($CFG->defaulthomepage)) {
-    $PAGE->navbar->add(get_string('dashboard', 'block_iomad_company_admin'), new moodle_url($CFG->wwwroot . '/my'));
-}
 $PAGE->navbar->add($linktext, $departmentlist);
 
 // Set the companyid
@@ -103,8 +100,9 @@ if ($editform->is_cancelled()) {
     $createdata->fullname = trim($createdata->fullname);
     $createdata->shortname = trim($createdata->shortname);
 
-    // Create or update the department.
-    if ($createdata->action != 0 ) {
+    // What are we doing here?
+    $current = $DB->get_record('department', array('id' => $createdata->departmentid));
+    if (empty($current)) {
         // We are creating a new department.
         company::create_department($createdata->departmentid,
                                    $companyid,
@@ -112,34 +110,29 @@ if ($editform->is_cancelled()) {
                                    $createdata->shortname,
                                    $createdata->deptid);
         $redirectmessage = get_string('departmentcreatedok', 'block_iomad_company_admin');
+    } else if ($current->parent == $createdata->deptid) {
+        // Not moving, just saving it.
+        company::create_department($createdata->departmentid,
+                                   $companyid,
+                                   $createdata->fullname,
+                                   $createdata->shortname,
+                                   $createdata->deptid);
+        $redirectmessage = get_string('departmentupdatedok', 'block_iomad_company_admin');
     } else {
-        // We are editing a current department.
-        // Check if we are moving this department.
-        $current = $DB->get_record('department', array('id' => $createdata->departmentid));
-        if (empty($current) || $current->parent == $createdata->deptid) {
-            // Not moving.  Save it.
-            company::create_department($createdata->departmentid,
-                                       $companyid,
-                                       $createdata->fullname,
-                                       $createdata->shortname,
-                                       $createdata->deptid);
-            $redirectmessage = get_string('departmentupdatedok', 'block_iomad_company_admin');
-        } else {
-            $parentdept = $DB->get_record('department', array('id' => $createdata->deptid));
-            echo $output->header();
-            echo $output->heading(get_string('movedepartment', 'block_iomad_company_admin'));
-            $optionsyes = array('moveid' => $departmentid,
-                                'confirm' => md5($departmentid),
-                                'companyid' => $companyid,
-                                'movefullname' => $createdata->fullname,
-                                'moveshortname' => $createdata->shortname,
-                                'moveparent' => $createdata->deptid,
-                                'sesskey' => sesskey());
-            $deptstring = (object) array('current' => $createdata->fullname, 'newparent' => $parentdept->name);
-            echo $output->confirm(get_string('movedepartmentcheckfull', 'block_iomad_company_admin', $deptstring),
-                                  new moodle_url('company_department_create_form.php', $optionsyes), 'company_departments.php');
-            die;
-        }
+        $parentdept = $DB->get_record('department', array('id' => $createdata->deptid));
+        echo $output->header();
+        echo $output->heading(get_string('movedepartment', 'block_iomad_company_admin'));
+        $optionsyes = array('moveid' => $departmentid,
+                            'confirm' => md5($departmentid),
+                            'companyid' => $companyid,
+                            'movefullname' => $createdata->fullname,
+                            'moveshortname' => $createdata->shortname,
+                            'moveparent' => $createdata->deptid,
+                            'sesskey' => sesskey());
+        $deptstring = (object) array('current' => $createdata->fullname, 'newparent' => $parentdept->name);
+        echo $output->confirm(get_string('movedepartmentcheckfull', 'block_iomad_company_admin', $deptstring),
+                              new moodle_url('company_department_create_form.php', $optionsyes), 'company_departments.php');
+        die;
     }
 
     redirect($departmentlist, $redirectmessage, null, \core\output\notification::NOTIFY_SUCCESS);
@@ -152,7 +145,7 @@ if ($editform->is_cancelled()) {
     echo $output->header();
     // Check the department is valid.
     if (!empty($departmentid) && !company::check_valid_department($companyid, $departmentid)) {
-        print_error('invaliddepartment', 'block_iomad_company_admin');
+        throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
     }
 
     $editform->display();

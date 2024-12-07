@@ -108,7 +108,7 @@ border-radius: 10px;
     padding-top: 31px;
 }
 
-.reporttablecontrolscontrol > .searchcourseform {
+.reporttablecontrolscontrol > .iomadcoursesearchform {
     padding-left: 25px;
 }
 
@@ -253,18 +253,6 @@ border-radius: 10px;
     color: #d30000;
 }
 
-.companymanagertable p.arrow_button #remove,
-.companycourseuserstable p.arrow_button #remove,
-.companycoursegroupstable p.arrow_button #remove,
-.companycoursetable p.arrow_button #remove,
-.companygroupuserstable p.arrow_button #remove,
-.companylicenseuserstable p.arrow_button #remove,
-.companytemplatetable p.arrow_button #remove,
-.companyframeworktable p.arrow_button #remove,
-.companyuserstable p.arrow_button #remove {
-    margin: 0;
-}
-
 #page-blocks-iomad_company_admin-editusers #mform1 {
     display: flex;
     padding-top: 5px;
@@ -376,4 +364,72 @@ border-radius: 10px;
 .tree_dept_name {
     display: inline-block;
     width: 100%;
+}
+
+#page-blocks-iomad_company_admin-classroom_list > #page-wrapper > nav > div.primary-navigation > nav {
+    opacity: 1;
+}
+
+.companymanagertable p.arrow_button input,
+.companycourseuserstable p.arrow_button input,
+.companycoursegroupstable p.arrow_button input,
+.companycoursetable p.arrow_button input,
+.companygroupuserstable p.arrow_button input,
+.companylicenseuserstable p.arrow_button input,
+.companytemplatetable p.arrow_button input,
+.companyframeworktable p.arrow_button input,
+.companyuserstable p.arrow_button input {
+    width: auto;
+    min-width: 80%;
+    margin: 0 auto;
+    display: block;
+}
+
+#full-company-select > tbody > tr > td {
+    text-align: center;
+}
+
+#page-blocks-iomad_company_admin-fullselect #fgroup_id_searcharray > div.col-md-3.col-form-label.d-flex.pb-0.pr-md-0,
+#page-blocks-iomad_company_admin-classroom_list #fgroup_id_searcharray > div.col-md-3.col-form-label.d-flex.pb-0.pr-md-0 {
+    display: none !important;
+}
+
+#page-blocks-iomad_company_admin-iomad_courses_form .iomadcoursesearchform {
+    padding-top: 5px;
+}
+
+.iomadcoursesearchform,
+.iomaddatesearchform,
+.iomadusersearchform {
+    margin-right: 10px;
+    float: left;
+}
+
+.iomadcoursesearchform .icons-collapse-expand.collapsed .expanded-icon,
+.iomadcoursesearchform .icons-collapse-expand.collapsed .collapsed-icon,
+.iomaddatesearchform  .icons-collapse-expand.collapsed .expanded-icon,
+.iomaddatesearchform .icons-collapse-expand.collapsed .collapsed-icon,
+.iomadusersearchform  .icons-collapse-expand.collapsed .expanded-icon,
+.iomadusersearchform .icons-collapse-expand.collapsed .collapsed-icon {
+    font-size: small;
+}
+
+.iomadcoursesearchform h3,
+.iomaddatesearchform h3,
+.iomadusersearchform h3 {
+    font-size: medium;
+}
+
+.iomadcoursesearchform .mform .form-inline .form-control,
+.iomadcoursesearchform .mform .form-inline .custom-select,
+.iomaddatesearchform .mform .form-inline .form-control,
+.iomaddatesearchform .mform .form-inline .custom-select,
+.iomadusersearchform .mform .form-inline .form-control,
+.iomadusersearchform .mform .form-inline .custom-select {
+    max-width:75%;
+}
+
+#page-blocks-iomad_company_admin-iomad_courses_form #iomad_company_selector {
+    float: left;
+    margin-right: 10px;
 }

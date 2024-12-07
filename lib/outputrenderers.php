@@ -872,7 +872,7 @@ class core_renderer extends renderer_base {
             $output .= $this->box_start($errorclass . ' moodle-has-zindex maintenancewarning m-3 alert');
             $a = new stdClass();
             $a->hour = (int)($timeleft / 3600);
-            $a->min = (int)(($timeleft / 60) % 60);
+            $a->min = (int)(floor($timeleft / 60) % 60);
             $a->sec = (int)($timeleft % 60);
             if ($a->hour > 0) {
                 $output .= get_string('maintenancemodeisscheduledlong', 'admin', $a);
@@ -2659,8 +2659,16 @@ class core_renderer extends renderer_base {
         $alt = '';
         if ($userpicture->alttext) {
             if (!empty($user->imagealt)) {
-                $alt = $user->imagealt;
+                $alt = trim($user->imagealt);
             }
+        }
+
+        // If the user picture is being rendered as a link but without the full name, an empty alt text for the user picture
+        // would mean that the link displayed will not have any discernible text. This becomes an accessibility issue,
+        // especially to screen reader users. Use the user's full name by default for the user picture's alt-text if this is
+        // the case.
+        if ($userpicture->link && !$userpicture->includefullname && empty($alt)) {
+            $alt = fullname($user);
         }
 
         if (empty($userpicture->size)) {
@@ -2691,8 +2699,12 @@ class core_renderer extends renderer_base {
 
         // Get the image html output first, auto generated based on initials if one isn't already set.
         if ($user->picture == 0 && empty($CFG->enablegravatar) && !defined('BEHAT_SITE_RUNNING')) {
-            $output = html_writer::tag('span', mb_substr($user->firstname, 0, 1) . mb_substr($user->lastname, 0, 1),
-                ['class' => 'userinitials size-' . $size]);
+            $initials = \core_user::get_initials($user);
+            // Don't modify in corner cases where neither the firstname nor the lastname appears.
+            $output = html_writer::tag(
+                'span', $initials,
+                ['class' => 'userinitials size-' . $size]
+            );
         } else {
             $output = html_writer::empty_tag('img', $attributes);
         }
@@ -3811,24 +3823,25 @@ EOD;
 
         // IOAMD
         $systemcontext = \context_system::instance();
-        if (\iomad::has_capability('block/iomad_company_admin:companymanagement_view', $systemcontext) ||
-            \iomad::has_capability('block/iomad_company_admin:usermanagement_view', $systemcontext) ||
-            \iomad::has_capability('block/iomad_company_admin:coursemanagement_view', $systemcontext) ||
-            \iomad::has_capability('block/iomad_company_admin:licensemanagement_view', $systemcontext) ||
-            \iomad::has_capability('block/iomad_company_admin:competencymanagement_view', $systemcontext) ||
-            \iomad::has_capability('block/iomad_commerce:admin_view', $systemcontext) ||
-            \iomad::has_capability('block/iomad_microlearning:view', $systemcontext) ||
-            \iomad::has_capability('block/iomad_reports:view', $systemcontext)) {
+        $iomadlink = "";
+        if ($DB->get_manager()->table_exists('company') &&
+            (\iomad::has_capability('block/iomad_company_admin:companymanagement_view', $systemcontext) ||
+             \iomad::has_capability('block/iomad_company_admin:usermanagement_view', $systemcontext) ||
+             \iomad::has_capability('block/iomad_company_admin:coursemanagement_view', $systemcontext) ||
+             \iomad::has_capability('block/iomad_company_admin:licensemanagement_view', $systemcontext) ||
+             \iomad::has_capability('block/iomad_company_admin:competencymanagement_view', $systemcontext) ||
+             \iomad::has_capability('block/iomad_commerce:admin_view', $systemcontext) ||
+             \iomad::has_capability('block/iomad_microlearning:view', $systemcontext) ||
+             \iomad::has_capability('block/iomad_reports:view', $systemcontext))) {
             $iomadlink = "-" . get_string('dashboard', 'block_iomad_company_admin') . "|" .
                          '/blocks/iomad_company_admin/index.php' . "\n\r";
-        } else {
-            $iomadlink = "";
         }
 
         // Deal with company custom and shop menu items.
         $shoplink = "";
         if ($companyid = \iomad::get_my_companyid(\context_system::instance(), false)) {
-            if ($companyrec = $DB->get_record('company', array('id' => $companyid))) {
+            if ($DB->get_manager()->table_exists('company') &&
+                $companyrec = $DB->get_record('company', array('id' => $companyid))) {
                 if (!empty($companyrec->custommenuitems)) {
                     $custommenuitems = $companyrec->custommenuitems;
                 }

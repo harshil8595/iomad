@@ -66,6 +66,8 @@ $output = $PAGE->get_renderer('block_iomad_company_admin');
 
 // Javascript for fancy select.
 $PAGE->requires->js_call_amd('block_iomad_company_admin/company_user', 'init', []);;
+$PAGE->requires->js_call_amd('block_iomad_company_admin/department_select_nosub', 'init', array('deptid', 1, optional_param('deptid', 0, PARAM_INT)));
+
 
 // Set the companyid
 $companyid = iomad::get_my_companyid($context);
@@ -74,7 +76,7 @@ $company = new company($companyid);
 // Check if the company has gone over the user quota.
 if (!$company->check_usercount(1)) {
     $maxusers = $company->get('maxusers');
-    print_error('maxuserswarning', 'block_iomad_company_admin', $dashboardurl, $maxusers);
+    throw new moodle_exception('maxuserswarning', 'block_iomad_company_admin', $dashboardurl, $maxusers);
 }
 
 $mform = new \block_iomad_company_admin\forms\user_edit_form($PAGE->url, $companyid, $departmentid, $licenseid);
@@ -91,6 +93,17 @@ if ($mform->is_cancelled()) {
         $data->companyid = $companyid;
     }
 
+    // we dont want to pass a department id right now - we assign any later on.
+    $departmentid = $data->deptid;
+    unset($data->departmentid);
+    unset($data->deptid);
+
+    // Company managers can't be added to a specified department.
+    if ($data->managertype == 1) {
+        $parentdepartment = company::get_company_parentnode($companyid);
+        $departmentid = $parentdepartment->id;
+    }
+
     if (!$userid = company_user::create($data)) {
         $this->verbose("Error inserting a new user in the database!");
         if (!$this->get('ignore_errors')) {
@@ -105,22 +118,8 @@ if ($mform->is_cancelled()) {
     profile_save_data($data);
     \core\event\user_updated::create_from_userid($userid)->trigger();
 
-    $systemcontext = context_system::instance();
-
-    // Check if we are assigning a different role to the user.
-    if (!empty($data->managertype || !empty($data->educator))) {
-        company::upsert_company_user($userid, $companyid, $data->deptid, $data->managertype, $data->educator);
-    }
-
-    // Assign the user to the default company department.
-    $parentnode = company::get_company_parentnode($companyid);
-    if (iomad::has_capability('block/iomad_company_admin:edit_all_departments', $systemcontext)) {
-        $userhierarchylevel = $parentnode->id;
-    } else {
-        $userlevel = $company->get_userlevel($USER);
-        $userhierarchylevel = key($userlevel);
-    }
-    company::assign_user_to_department($data->deptid, $userid);
+    // Process any department moves or promotions.
+    company::upsert_company_user($userid, $companyid, $departmentid, $data->managertype, $data->educator, false, true);
 
     // Enrol the user on the courses.
     if (!empty($createcourses)) {
@@ -183,12 +182,12 @@ echo $output->header();
 
 // Check the department is valid.
 if (!empty($departmentid) && !company::check_valid_department($companyid, $departmentid)) {
-    print_error('invaliddepartment', 'block_iomad_company_admin');
+    throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
 }
 
 // Check the userid is valid.
 if (!empty($userid) && !company::check_valid_user($companyid, $userid, $departmentid)) {
-    print_error('invaliduserdepartment', 'block_iomad_company_management');
+    throw new moodle_exception('invaliduserdepartment', 'block_iomad_company_management');
 }
 
 // Display a message if user is created..
@@ -201,4 +200,3 @@ if ($createdok) {
 $mform->display();
 
 echo $output->footer();
-

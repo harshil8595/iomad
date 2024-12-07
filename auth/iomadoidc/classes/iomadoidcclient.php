@@ -27,6 +27,7 @@ namespace auth_iomadoidc;
 
 use moodle_exception;
 use moodle_url;
+use context_system;
 use iomad;
 
 defined('MOODLE_INTERNAL') || die();
@@ -356,7 +357,7 @@ class iomadoidcclient {
      * @return array Received parameters.
      */
     public function tokenrequest($code) {
-        $CFG;
+        global $CFG;
 
         // IOMAD
         require_once($CFG->dirroot . '/local/iomad/lib/company.php');

@@ -82,8 +82,8 @@ function do_redocerts($user = 0, $course = 0, $company = 0, $idnumber = 0, $from
         echo format_string('clearingcertificate', 'tool_redocerts', $sumstring);
         echo html_writer::end_tag('br');
         local_iomad_track_delete_entry($track->id);
-        echo format_string('recreatingcertificate', 'tool_redocerts');
-        if (xmldb_local_iomad_track_record_certificates($track->courseid, $track->userid, $track->id)) {
+        echo format_string('recreatingcertificate', 'tool_redocerts') . '&nbsp';
+        if (xmldb_local_iomad_track_record_certificates($track->courseid, $track->userid, $track->id, true, false)) {
             echo format_string('success');
         } else {
             echo format_string('falied', 'scorm');

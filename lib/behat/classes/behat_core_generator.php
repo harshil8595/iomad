@@ -290,7 +290,7 @@ class behat_core_generator extends behat_generator_base {
             'user private files' => [
                 'singular' => 'user private file',
                 'datagenerator' => 'user_private_files',
-                'required' => ['user', 'filepath', 'filename'],
+                'required' => ['user', 'filepath'],
                 'switchids' => ['user' => 'userid']
             ],
             'badge external backpacks' => [
@@ -470,13 +470,7 @@ class behat_core_generator extends behat_generator_base {
             }
         }
 
-        // Custom exception.
-        try {
-            $this->datagenerator->create_module($activityname, $data, $cmoptions);
-        } catch (coding_exception $e) {
-            throw new Exception('\'' . $activityname . '\' activity can not be added using this step,' .
-                    ' use the step \'I add a "ACTIVITY_OR_RESOURCE_NAME_STRING" to section "SECTION_NUMBER"\' instead');
-        }
+        $this->datagenerator->create_module($activityname, $data, $cmoptions);
     }
 
     /**

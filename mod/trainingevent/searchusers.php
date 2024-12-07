@@ -71,20 +71,18 @@ $params['deptid'] = $departmentid;
 $params['eventid'] = $eventid;
 
 if (!$event = $DB->get_record('trainingevent', array('id' => $eventid))) {
-    print_error('invalid event ID');
+    throw new moodle_exception('invalid event ID');
 }
 
 if (!$cm = get_coursemodule_from_instance('trainingevent', $event->id, $event->course)) {
-    print_error('invalid coursemodule ID');
+    throw new moodle_exception('invalid coursemodule ID');
 }
 // Page stuff.
 $url = new moodle_url('/course/view.php', array('id' => $event->course));
 $context = context_course::instance($event->course);
 require_login($event->course); // Adds to $PAGE, creates $output.
 $PAGE->set_url($url);
-$PAGE->set_pagelayout('standard');
 $PAGE->set_title($event->name);
-$PAGE->set_heading($SITE->fullname);
 $baseurl  = new moodle_url('searchusers.php', array('eventid' => $eventid));
 
 // get output renderer
@@ -99,6 +97,11 @@ echo $output->header();
 // Get the location information.
 $location = $DB->get_record('classroom', array('id' => $event->classroomid));
 
+// Set the capacity for the event if it doesn't already exist.
+if (empty($event->coursecapacity)) {
+    $event->coursecapacity = $location->capacity;
+}
+
 // How many are already attending?
 $attending = $DB->count_records('trainingevent_users', array('trainingeventid' => $event->id, 'waitlisted' => 0));
 
@@ -109,7 +112,7 @@ $companydepartment = $parentlevel->id;
 
 // Check the department is valid.
 if (!empty($departmentid) && !company::check_valid_department($company->id, $departmentid)) {
-    print_error('invaliddepartment', 'block_iomad_company_admin');
+    throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
 }
 
 if (has_capability('block/iomad_company_admin:edit_all_departments', context_system::instance())) {
@@ -123,7 +126,7 @@ if ($departmentid == 0 ) {
 }
 
 // Set up the filter form..
-$mform = new iomad_user_filter_form(null, array('companyid' => $company->id));
+$mform = new \local_iomad\forms\user_search_form(null, array('companyid' => $company->id));
 $mform->set_data(array('departmentid' => $departmentid, 'eventid' => $eventid));
 $mform->set_data($params);
 $mform->get_data();
@@ -133,7 +136,11 @@ echo $output->display_tree_selector($company, $parentlevel, $baseurl, $params, $
 echo html_writer::start_tag('div', array('class' => 'iomadclear', 'style' => 'padding-top: 5px;'));
 
 // Display the user filter form.
+echo html_writer::start_tag('div', ['class' => 'iomadusersearchform']);
 $mform->display();
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
+echo html_writer::start_tag('div', array('class' => 'iomadclear'));
 
 // Deal with the user optional profile search.
 $fieldnames= array();
@@ -177,7 +184,9 @@ if (!empty($fieldnames)) {
     foreach ($fieldnames as $id => $fieldname) {
         if (!empty($allfields[$id]->datatype) && $allfields[$id]->datatype == "menu" ) {
             $paramarray = explode("\n", $allfields[$id]->param1);
-            ${$fieldname} = $paramarray[${$fieldname}];
+            if (!empty($paramarray[${$fieldname}])) {
+                ${$fieldname} = $paramarray[${$fieldname}];
+            }
         }
         if (!empty(${$fieldname}) ) {
             $idlist[0] = "We found no one";
@@ -214,45 +223,50 @@ foreach ($columns as $column) {
 
 // Get all or company users depending on capability.
 
-// Check if has capability edit all users.
-// Get department users.
-$departmentusers = company::get_recursive_department_users($departmentid);
-if ( count($departmentusers) > 0 ) {
-    $departmentids = "";
-    foreach ($departmentusers as $departmentuser) {
-        if (!empty($departmentids)) {
-            $departmentids .= ",".$departmentuser->userid;
-        } else {
-            $departmentids .= $departmentuser->userid;
+// Check if has capability to view all attendees.
+$coursecontext = context_course::instance($event->course);
+if (!has_capability('mod/trainingevent:viewallattendees', $coursecontext)) {
+	 // Get department users.
+    $departmentusers = company::get_recursive_department_users($departmentid);
+    if ( count($departmentusers) > 0 ) {
+        $departmentids = "";
+        foreach ($departmentusers as $departmentuser) {
+            if (!empty($departmentids)) {
+                $departmentids .= ",".$departmentuser->userid;
+            } else {
+                $departmentids .= $departmentuser->userid;
+            }
         }
+        $sqlsearch = " id in ($departmentids) AND ";
+    } else {
+        $sqlsearch = "1 = 0 AND ";
     }
-    $sqlsearch = " id in ($departmentids) ";
 } else {
-    $sqlsearch = "1 = 0";
+    $sqlsearch = "";
 }
 
 // Deal with search strings..
 if (!empty($idlist)) {
-    $sqlsearch .= "AND id in (".implode(',', array_keys($idlist)).") ";
+    $sqlsearch .= "id in (".implode(',', array_keys($idlist)).") AND ";
 }
 if (!empty($params['firstname'])) {
-    $sqlsearch .= " AND firstname like '%".$params['firstname']."%' ";
+    $sqlsearch .= "firstname like '%".$params['firstname']."%' AND ";
 }
 
 if (!empty($params['lastname'])) {
-    $sqlsearch .= " AND lastname like '%".$params['lastname']."%' ";
+    $sqlsearch .= "lastname like '%".$params['lastname']."%' AND ";
 }
 
 if (!empty($params['email'])) {
-    $sqlsearch .= " AND email like '%".$params['email']."%' ";
+    $sqlsearch .= "email like '%".$params['email']."%' AND ";
 }
 // Deal with users already assigned..
 if ($assignedusers = $DB->get_records('trainingevent_users', array('trainingeventid' => $event->id, 'waitlisted' => 0), null, 'userid')) {
-    $sqlsearch .= " AND id not in (".implode(',', array_keys($assignedusers)).") ";
+    $sqlsearch .= "id not in (".implode(',', array_keys($assignedusers)).") AND ";
 }
 
 // Strip out no course users.
-$sqlsearch .= " AND id IN (SELECT u.id FROM {user} u
+$sqlsearch .= "id IN (SELECT u.id FROM {user} u
                            JOIN (SELECT DISTINCT eu2_u.id FROM {user} eu2_u
                                  JOIN {user_enrolments} eu2_ue ON eu2_ue.userid = eu2_u.id
                                  JOIN {enrol} eu2_e ON (eu2_e.id = eu2_ue.enrolid AND eu2_e.courseid = " . $event->course . ")
@@ -346,7 +360,7 @@ if (!$users) {
             continue; // Do not dispaly dummy new user and guest here.
         }
 
-        if (has_capability('mod/trainingevent:add', $context) && ($location->isvirtual || $attending < $location->capacity)) {
+        if (has_capability('mod/trainingevent:add', $context) && ($location->isvirtual || $attending < $event->coursecapacity)) {
             $enrolmentbutton = $output->single_button(new moodle_url("/mod/trainingevent/view.php",
                                                                       array('id' => $cm->id,
                                                                             'chosenevent' => $event->id,

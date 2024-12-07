@@ -93,7 +93,7 @@ if (empty($company) && !empty($companyid)) {
 if (!empty($update)) {
     // Need to change something.
     if (!$templatedetails = (array) $DB->get_record('iomad_templates', array('templateid' => $templateid))) {
-        print_error(get_string('invaliddetails', 'block_iomad_company_admin'));
+        throw new moodle_exception(get_string('invaliddetails', 'block_iomad_company_admin'));
     } else {
         if ('shared' == $update) {
             $previousshared = $templatedetails['shared'];
@@ -152,7 +152,7 @@ ksort($companyids);
 $companyselect = new single_select($linkurl, 'company', $companyids, $company);
 $companyselect->label = get_string('company', 'block_iomad_company_admin');
 $companyselect->formid = 'choosecompany';
-echo html_writer::tag('div', $OUTPUT->render($companyselect), array('id' => 'iomad_company_selector')).'</br>';
+echo html_writer::tag('div', $OUTPUT->render($companyselect), array('id' => 'iomad_company_selector')).'<br>';
 
 // Need a name search in here too.
 

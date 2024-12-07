@@ -102,9 +102,9 @@ $managerselect = new single_select(
     $managertypes,
     $roleid,
     array('' => 'choosedots'),
-    null,
-    ['label' => get_string('managertype', 'block_iomad_company_admin')]
+    null
 );
+$managerselect->set_label(get_string('managertype', 'block_iomad_company_admin'), ['style' => 'justify-content:left;width:100%;text-align: left;padding-top:5px;']);
 
 $othersselect = new single_select(new moodle_url($linkurl, $urlparams), 'showothermanagers',
                 array(get_string('no'), get_string('yes')), $showothermanagers);
@@ -128,7 +128,7 @@ if ($managersform->is_cancelled()) {
     if ($returnurl) {
         redirect($returnurl);
     } else {
-        redirect(new moodle_url('/my'));
+        redirect(new moodle_url($CFG->wwwroot .'/blocks/iomad_company_admin/index.php'));
     }
 } else {
     $managersform->process($departmentid, $roleid);
@@ -137,7 +137,7 @@ if ($managersform->is_cancelled()) {
 
     // Check the department is valid.
     if (!empty($departmentid) && !company::check_valid_department($companyid, $departmentid)) {
-        print_error('invaliddepartment', 'block_iomad_company_admin');
+        throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
     }
 
     // Display the department tree.

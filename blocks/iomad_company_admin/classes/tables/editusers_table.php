@@ -74,10 +74,53 @@ class editusers_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_department($row) {
-        global $DB, $USER, $company, $OUTPUT;
+        global $DB, $USER, $selectedcompanyid, $company, $OUTPUT;
 
-        $userdepartments = isset($this->alldepartments[$row->id]) ? $this->alldepartments[$row->id] : [];
-        if (empty($USER->editing) || $row->managertype == 1) {
+        // Only show departments if they are in the current company.
+        if ($company->id == $selectedcompanyid) { 
+            $userdepartments = array_keys($DB->get_records('company_users', ['companyid' => $company->id, 'userid' => $row->id], '', 'departmentid'));
+            if (empty($USER->editing) || $row->managertype == 1) {
+                $count = count($userdepartments);
+                $current = 1;
+                $returnstr = "";
+                if ($count > 5) {
+                    $returnstr = "<details><summary>" . get_string('show') . "</summary>";
+                }
+
+                foreach($userdepartments as $department) {
+                    //$returnstr .= format_string($department->name);
+                    $returnstr .= format_string($this->departmentsmenu[$department]);
+    
+                    if ($current < $count) {
+                        $returnstr .= ",<br>";
+                    }
+                    $current++;
+                }
+
+                if ($count > 5) {
+                    $returnstr .= "</details>";
+                }
+
+                return $returnstr;
+
+            } else {
+                $editable = new \block_iomad_company_admin\output\user_departments_editable($company,
+                                                              \context_system::instance(),
+                                                              $row,
+                                                              $userdepartments,
+                                                              $this->departments,
+                                                              $this->assignabledepartments);
+    
+                return $OUTPUT->render_from_template('core/inplace_editable', $editable->export_for_template($OUTPUT));
+            }
+        } else {
+            $userdepartments = $DB->get_records_sql("SELECT d.id, d.name FROM {department} d
+                                                     JOIN {company_users} cu ON (d.company = cu.companyid AND d.id = cu.departmentid)
+                                                     WHERE cu.companyid = :companyid
+                                                     AND cu.userid = :userid
+                                                     ORDER BY d.name",
+                                                    ['companyid' => $selectedcompanyid,
+                                                     'userid' => $row->id]);
             $count = count($userdepartments);
             $current = 1;
             $returnstr = "";
@@ -85,13 +128,11 @@ class editusers_table extends table_sql {
                 $returnstr = "<details><summary>" . get_string('show') . "</summary>";
             }
 
-            $first = true;
             foreach($userdepartments as $department) {
-                //$returnstr .= format_string($department->name);
-                $returnstr .= format_string($this->departmentsmenu[$department]);
+                $returnstr .= format_string($department->name);
 
                 if ($current < $count) {
-                    $returnstr .= ",</br>";
+                    $returnstr .= ",<br>";
                 }
                 $current++;
             }
@@ -101,16 +142,6 @@ class editusers_table extends table_sql {
             }
 
             return $returnstr;
-
-        } else {
-            $editable = new \block_iomad_company_admin\output\user_departments_editable($company,
-                                                          \context_system::instance(),
-                                                          $row,
-                                                          $userdepartments,
-                                                          $this->departments,
-                                                          $this->assignabledepartments);
-
-            return $OUTPUT->render_from_template('core/inplace_editable', $editable->export_for_template($OUTPUT));
         }
     }
 
@@ -120,20 +151,20 @@ class editusers_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_managertype($row) {
-        global $CFG, $DB, $USER, $company, $OUTPUT;
+        global $CFG, $DB, $USER, $selectedcompanyid, $company, $OUTPUT;
 
         $returnstr = "";
 
-        if (empty($USER->editing)) {
+        if (empty($USER->editing) || $selectedcompanyid != $company->id) {
             $returnstr .= $this->usertypes[$row->managertype];
             if (!empty($row->educator) && empty($CFG->iomad_autoenrol_managers)) {
-                $returnstr .= ",</br>" . $this->usertypes[3];
+                $returnstr .= ",<br>" . $this->usertypes[3];
             }
     
             return $returnstr;
         } else {
             // Can't be a company manager if you are in more than one department or the department you are in is not the top level department.
-            $userdepartments = isset($this->alldepartments[$row->id]) ? $this->alldepartments[$row->id] : [];
+            $userdepartments = array_keys($DB->get_records('company_users', ['companyid' => $company->id, 'userid' => $row->id], '', 'departmentid'));
             $usertypeselect = $this->usertypeselect;
             if (count($userdepartments) > 1 ||
                 $userdepartments[0] != $this->parentlevel->id) {
@@ -183,8 +214,8 @@ class editusers_table extends table_sql {
     public function col_lastaccess($row) {
         global $CFG;
 
-        if (!empty($row->currentlogin)) {
-            return date($CFG->iomad_date_format, $row->currentlogin);
+        if (!empty($row->lastaccess)) {
+            return date($CFG->iomad_date_format, $row->lastaccess);
         } else {
             return get_string('never');
         }
@@ -417,16 +448,6 @@ class editusers_table extends table_sql {
         $this->assignabledepartments = company::array_flatten(company::get_department_list($departmenttree[0]));
 
         $this->departmentsmenu = $DB->get_records_menu('department', ['company' => $companyid], 'name', 'id,name');
-        $users = $DB->get_records_sql("SELECT DISTINCT userid 
-                                       FROM {company_users}
-                                       WHERE companyid = :companyid",
-                                       ['companyid' => $companyid]);
-        $alldepartments = [];
-        foreach($users as $user) {
-            $userdepartments = $DB->get_records('company_users', ['companyid' => $companyid, 'userid' => $user->userid], 'departmentid', 'departmentid');
-            $alldepartments[$user->userid] = array_keys($userdepartments);
-        }
-        $this->alldepartments = $alldepartments;
 
         // Deal with role selector.
         $this->usertypeselect = ['0' => get_string('user', 'block_iomad_company_admin')];

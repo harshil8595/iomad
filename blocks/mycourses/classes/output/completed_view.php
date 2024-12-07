@@ -45,9 +45,8 @@ class completed_view implements renderable, templatable {
      * @param array $courses list of courses.
      * @param array $coursesprogress list of courses progress.
      */
-    public function __construct($mycompletion, $cutoffdate) {
+    public function __construct($mycompletion) {
         $this->mycompletion = $mycompletion;
-        $this->cutoffdate = $cutoffdate;
     }
 
     /**
@@ -57,48 +56,55 @@ class completed_view implements renderable, templatable {
      * @return array
      */
     public function export_for_template(renderer_base $output) {
-        global $CFG, $DB, $USER;
+        global $CFG, $DB, $USER, $OUTPUT;
         require_once($CFG->dirroot.'/course/lib.php');
 
         // Build courses view data structure.
         $completedview = [];
 
         foreach ($this->mycompletion->mycompleted as $mid => $completed) {
-            $context = \context_course::instance($completed->courseid);
-            $course = $DB->get_record("course", array("id"=>$completed->courseid));
-            $courseobj = new \core_course_list_element($course);
-
-            $exporter = new course_summary_exporter($course, ['context' => $context]);
-            $exportedcourse = $exporter->export($output);
-            if ($CFG->mycourses_showsummary) {
-                // Convert summary to plain text.
-                $coursesummary = content_to_text($exportedcourse->summary, $exportedcourse->summaryformat);
+            if (!$course = $DB->get_record("course", array("id"=>$completed->courseid))) {
+                $context = \context_system::instance();
+                $linkurl = new \moodle_url('/my');
+                $exportedcourse = (object) ['id' => 0,
+                                            'fullname' => $completed->coursefullname,
+                                            'shortname' => $completed->coursefullname,
+                                            'summary' => '',
+                                            'summaryformat' => 1,
+                                            'visible' => 0,
+                                            'fullnamedisplay' => 0,
+                                            'courseimage' => 0,
+                                            'viewurl' => $linkurl->out(),
+                                            'image' => $OUTPUT->get_generated_image_for_id(SITEID),
+                                            'url' => $linkurl->out(),
+                                            'coursecategory' => ''];
             } else {
-                $coursesummary = '';
-            }
-            // display course overview files
-            $imageurl = '';
-            foreach ($courseobj->get_course_overviewfiles() as $file) {
-                $isimage = $file->is_valid_image();
-                if (!$isimage) {
-                    $imageurl = null;
-                } else {
-                    $imageurl = file_encode_url("$CFG->wwwroot/pluginfile.php",
-                                '/'. $file->get_contextid(). '/'. $file->get_component(). '/'.
-                                $file->get_filearea(). $file->get_filepath(). $file->get_filename(), !$isimage);
-                }
-            }
-            if (empty($completed->finalgrade)) {
-                $completed->finalgrade = 0;
-            }
+                $context = \context_course::instance($completed->courseid);
+                $courseobj = new \core_course_list_element($course);
 
-            if (empty($imageurl)) {
-                $imageurl = $output->image_url('i/course');
+                $exporter = new course_summary_exporter($course, ['context' => $context]);
+                $exportedcourse = $exporter->export($output);
+                if ($CFG->mycourses_showsummary) {
+                    // Convert summary to plain text.
+                    $coursesummary = content_to_text($exportedcourse->summary, $exportedcourse->summaryformat);
+                } else {
+                    $coursesummary = '';
+                }
+                // display course overview files
+                $imageurl = \core_course\external\course_summary_exporter::get_course_image($courseobj);
+                if (empty($imageurl)) {
+                    $imageurl = $OUTPUT->get_generated_image_for_id($course->id);
+                }
+
+                if (empty($completed->finalgrade)) {
+                    $completed->finalgrade = 0;
+                }
+
+                $exportedcourse = $exporter->export($output);
+                $exportedcourse->url = new \moodle_url('/course/view.php', array('id' => $completed->courseid));
+                $exportedcourse->image = $imageurl;
+                $exportedcourse->summary = $coursesummary;
             }
-            $exportedcourse = $exporter->export($output);
-            $exportedcourse->url = new \moodle_url('/course/view.php', array('id' => $completed->courseid));
-            $exportedcourse->image = $imageurl;
-            $exportedcourse->summary = $coursesummary;
             $exportedcourse->timecompleted = date($CFG->iomad_date_format, $completed->timecompleted);
             if ($iomadcourserec = $DB->get_record('iomad_courses', array('courseid' => $completed->courseid))) {
                 if (!empty($iomadcourserec->validlength)) {
@@ -115,12 +121,14 @@ class completed_view implements renderable, templatable {
             } else {
                 $exportedcourse->finalscore = get_string('passed', 'block_iomad_company_admin');
             }
-            foreach ($completed->certificates as $certificate) {
-                $certout = new \stdclass();
-                $certout->certificateurl = $certificate->certificateurl;
-                $certout->certificatename = $certificate->certificatename;
-                $certout->certificateimage = $certificateimage;
-                $exportedcourse->certificates[] = $certout;
+            if (!empty($completed->certificates)) {
+                foreach ($completed->certificates as $certificate) {
+                    $certout = new \stdclass();
+                    $certout->certificateurl = $certificate->certificateurl;
+                    $certout->certificatename = $certificate->certificatename;
+                    $certout->certificateimage = $certificateimage;
+                    $exportedcourse->certificates[] = $certout;
+                }
             }
             $completedview['courses'][] = $exportedcourse;
         }

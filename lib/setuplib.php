@@ -776,6 +776,20 @@ function initialise_cfg() {
         return;
     }
 
+    // IOMAD - Set the theme if the server hostname matches one of ours.
+    if(!CLI_SCRIPT && !during_initial_install()){
+        $CFG->wwwrootdefault = $CFG->wwwroot;
+
+        // Does this match a company hostname?
+        if ($DB->get_manager()->table_exists('company') &&
+            ($companyrec = $DB->get_record('company', array('hostname' => $_SERVER['SERVER_NAME'])))) {
+            $company = new company($companyrec->id);
+
+            // Set the wwwroot to the company one using the same protocol.
+            $CFG->wwwroot  = $company->get_wwwroot();
+        }
+    }
+
     foreach ($localcfg as $name => $value) {
         // Note that get_config() keeps forced settings
         // and normalises values to string if possible.
@@ -1470,7 +1484,7 @@ function redirect_if_major_upgrade_required() {
  *
  * To be inserted in the core functions that can not be called by pluigns during upgrade.
  * Core upgrade should not use any API functions at all.
- * See {@link http://docs.moodle.org/dev/Upgrade_API#Upgrade_code_restrictions}
+ * See {@link https://moodledev.io/docs/guides/upgrade#upgrade-code-restrictions}
  *
  * @throws moodle_exception if executed from inside of upgrade script and $warningonly is false
  * @param bool $warningonly if true displays a warning instead of throwing an exception

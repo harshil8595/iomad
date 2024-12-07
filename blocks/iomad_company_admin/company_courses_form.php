@@ -81,7 +81,7 @@ if ($mform->is_cancelled()) {
     if ($returnurl) {
         redirect($returnurl);
     } else {
-        redirect(new moodle_url('/my'));
+        redirect(new moodle_url($CFG->wwwroot .'/blocks/iomad_company_admin/index.php'));
     }
 } else {
     $mform->process();
@@ -90,7 +90,7 @@ if ($mform->is_cancelled()) {
 
     // Check the department is valid.
     if (!empty($departmentid) && !company::check_valid_department($companyid, $departmentid)) {
-        print_error('invaliddepartment', 'block_iomad_company_admin');
+        throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
     }
 
     $mform->display();

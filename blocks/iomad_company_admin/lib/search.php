@@ -43,7 +43,7 @@ $profilefieldid = optional_param('profilefieldid', 0, PARAM_INT);
 // Get and validate the selectorid parameter.
 $selectorhash = required_param('selectorid', PARAM_ALPHANUM);
 if (!isset($USER->userselectors[$selectorhash])) {
-    print_error('unknownuserselector');
+    throw new moodle_exception('unknownuserselector');
 }
 
 // Get the options.
@@ -59,7 +59,6 @@ if (isset($options['file'])) {
     unset($options['file']);
 }
 $options['profilefieldid'] = $profilefieldid;
-error_log("options =");error_log(print_r($options, true));
 $userselector = new $classname($name, $options);
 
 // Do the search and output the results.

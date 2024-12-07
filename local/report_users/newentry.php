@@ -65,7 +65,7 @@ $output = $PAGE->get_renderer('block_iomad_company_admin');
 
 // Check the userid is valid.
 if (!company::check_valid_user($companyid, $userid)) {
-    print_error('invaliduser', 'block_iomad_company_management');
+    throw new moodle_exception('invaliduser', 'block_iomad_company_management');
 }
 
 $mform = new local_report_users\forms\add_entry_form($PAGE->url);
@@ -107,7 +107,7 @@ if ($data = $mform->get_data()) {
     $trackid = $DB->insert_record('local_iomad_track', $newentry);
 
     // Create a certificate, if required.
-    xmldb_local_iomad_track_record_certificates($newentry->courseid, $newentry->userid, $trackid, false);
+    xmldb_local_iomad_track_record_certificates($newentry->courseid, $newentry->userid, $trackid, false, false);
 
     // Return success.
     redirect($returnurl,

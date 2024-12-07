@@ -158,14 +158,21 @@ class company_course_users_form extends moodleform {
             $course->fullname = $namestring;
             $course->id = 0;
         }
-        $mform->addElement('header', 'header',
-                            get_string('company_users_for', 'block_iomad_company_admin',
-                            format_string($course->fullname, true, 1) ));
+        if (!empty($course->fullname)) {
+            $mform->addElement('header', 'header',
+                                get_string('company_users_for', 'block_iomad_company_admin',
+                                format_string($course->fullname, true, 1) ));
+        } else {
+            $mform->addElement('header', 'header',
+                                get_string('company_users_for', 'block_iomad_company_admin',
+                                '' ));
+        }
 
         $mform->addElement('date_time_selector', 'due', get_string('senddate', 'block_iomad_company_admin'));
         $mform->addHelpButton('due', 'senddate', 'block_iomad_company_admin');
 
-        if (in_array(0, $this->selectedcourses) || count($this->selectedcourses) != 1) {
+        if (!empty( $this->selectedcourses) &&
+            (in_array(0, $this->selectedcourses) || count($this->selectedcourses) != 1)) {
             $mform->addElement('hidden', 'groupid', 0);
             $mform->setType('groupid', PARAM_INT);
         } else {
@@ -191,19 +198,21 @@ class company_course_users_form extends moodleform {
         $mform->addElement('html', '
               </td>
               <td id="buttonscell">
+                  <p class="arrow_button">
                       <input name="add" id="add" type="submit" value="&nbsp;' .
                       $output->larrow().'&nbsp;'. get_string('enrol', 'block_iomad_company_admin') .
-                       '" title="Enrol" /></br>
+                       '" title="Enrol" /><br>
                       <input name="addall" id="addall" type="submit" value="&nbsp;' .
                       $output->larrow().'&nbsp;'. get_string('enrolall', 'block_iomad_company_admin') .
-                      '" title="Enrolall" /></br>
+                      '" title="Enrolall" /><br>
 
                       <input name="remove" id="remove" type="submit" value="' .
                        $output->rarrow().'&nbsp;'. get_string('unenrol', 'block_iomad_company_admin') .
-                       '&nbsp;" title="Unenrol" /></br>
+                       '&nbsp;" title="Unenrol" /><br>
                       <input name="removeall" id="removeall" type="submit" value="&nbsp;' .
                       $output->rarrow().'&nbsp;'. get_string('unenrolall', 'block_iomad_company_admin') .
-                      '" title="Enrolall" /></br>
+                      '" title="Enrolall" /><br>
+                  </p>
               </td>
               <td id="potentialcell">');
 
@@ -254,7 +263,7 @@ class company_course_users_form extends moodleform {
 
                     // Check the userid is valid.
                     if (!company::check_valid_user($this->selectedcompany, $adduser->id, $this->departmentid)) {
-                        print_error('invaliduserdepartment', 'block_iomad_company_management');
+                        throw new moodle_exception('invaliduserdepartment', 'block_iomad_company_management');
                     }
 
                     if ($allow) {
@@ -310,7 +319,7 @@ class company_course_users_form extends moodleform {
                     }
                     // Check the userid is valid.
                     if (!company::check_valid_user($this->selectedcompany, $removeuser->userid, $this->departmentid)) {
-                        print_error('invaliduserdepartment', 'block_iomad_company_management');
+                        throw new moodle_exception('invaliduserdepartment', 'block_iomad_company_management');
                     }
 
                     // Unenrol the user on the courses.

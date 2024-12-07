@@ -99,6 +99,12 @@ class block_iomad_company_admin extends block_base {
                 $SESSION->currenteditingcompany = $firstcompany->id;
                 $company = $firstcompany->id;
             }
+        } else {
+            if (!empty($SESSION->currenteditingcompany)) {
+              $company = $SESSION->currenteditingcompany;
+            } else {
+                $company = (object) [];
+            }
         }
     }
 
@@ -298,6 +304,31 @@ class block_iomad_company_admin extends block_base {
             return $this->content;
         }
 
+        // Remove empty ones.
+        $doreset = false;
+        $doselected = false;
+        foreach ($panes as $paneid => $paneentry) {
+            if (empty($paneentry['items'])) {
+                unset($panes[$paneid]);
+                $doreset = true;
+                if ($tabs[$paneid - 1]['selected']) {
+                    $doselected = true;
+                }
+                unset($tabs[$paneid - 1]);
+            }
+        }
+
+        // Reset the tabs array in case something was removed - as we need to order starting from 0.
+        if ($doreset) {
+            $tabs = array_values($tabs);
+        }
+
+        // Set default selected in case that was removed.
+        if ($doselected) {
+            $tabs[0]['selected'] = true;
+            $panes[array_key_first($panes)]['selected'] =true;
+        }
+
         // Logo.
         $logourl = $renderer->image_url('iomadlogo', 'block_iomad_company_admin');
 
@@ -363,15 +394,15 @@ class block_iomad_company_admin extends block_base {
 
         // Get a list of companies.
         $companylist = company::get_companies_select($showsuspendedcompanies);
-        $select = new \block_iomad_company_admin\forms\iomad_company_select_form(new moodle_url('/my/index.php'), $companylist, $selectedcompany);
+        $select = new \block_iomad_company_admin\forms\iomad_company_select_form(new moodle_url($CFG->wwwroot .'/blocks/iomad_company_admin/index.php'), $companylist, $selectedcompany);
         $select->set_data(array('company' => $selectedcompany, 'showsuspendedcompanies' => $showsuspendedcompanies));
         $selector->selectform = $select->render();
         if (!$showsuspendedcompanies) {
-            $selector->suspended = $OUTPUT->single_button(new moodle_url('/my/index.php',
+            $selector->suspended = $OUTPUT->single_button(new moodle_url($CFG->wwwroot .'/blocks/iomad_company_admin/index.php',
                                                array('showsuspendedcompanies' => true)),
                                                get_string("show_suspended_companies", 'block_iomad_company_admin'));
         } else {
-            $selector->suspended = $OUTPUT->single_button(new moodle_url('/my/index.php',
+            $selector->suspended = $OUTPUT->single_button(new moodle_url($CFG->wwwroot .'/blocks/iomad_company_admin/index.php',
                                                array('showsuspendedcompanies' => false)),
                                                get_string("hide_suspended_companies", 'block_iomad_company_admin'));
         }
@@ -395,4 +426,17 @@ class block_iomad_company_admin extends block_base {
 
         return true;
     }
+
+    // Where can we see this block.
+    public function applicable_formats() {
+        return array('all' => false,
+                     'site' => false,
+                     'site-index' => false,
+                     'course-view' => false,
+                     'course-view-social' => false,
+                     'mod' => false,
+                     'my' => true,
+                     'mod-quiz' => false);
+    }
+
 }

@@ -400,7 +400,7 @@ function iomadcertificate_get_issue($course, $user, $iomadcertificate, $cm) {
  * @param int $perpage total per page
  * @return stdClass the users
  */
-function iomadcertificate_get_issues($iomadcertificateid, $sort="ci.timecreated ASC", $groupmode, $cm, $page = 0, $perpage = 0) {
+function iomadcertificate_get_issues($iomadcertificateid, $sort="ci.timecreated ASC", $groupmode = false, $cm = 0, $page = 0, $perpage = 0) {
     global $DB, $USER;
 
     $context = context_module::instance($cm->id);
@@ -512,7 +512,7 @@ function iomadcertificate_print_attempts($course, $iomadcertificate, $attempts) 
     $table->attributes = array("style" => "width:20%; margin:auto");
     $gradecolumn = $iomadcertificate->printgrade;
     if ($gradecolumn) {
-        $table->head[] = get_string('grade');
+        $table->head[] = get_string('grade', 'grades');
         $table->align[] = 'center';
         $table->size[] = '';
     }
@@ -865,17 +865,16 @@ function iomadcertificate_get_date($iomadcertificate, $certrecord, $course, $use
     // Set iomadcertificate date to current time, can be overwritten later
     if (!empty($certrecord->timecreated)) {
         $date = $certrecord->timecreated;
-    } else {
-        if ($iomadcertificate->printdate == '2') {
-            // Get the enrolment end date
-            $sql = "SELECT MAX(c.timecompleted) as timecompleted
-                      FROM {course_completions} c
-                     WHERE c.userid = :userid
-                       AND c.course = :courseid";
-                if ($timecompleted = $DB->get_record_sql($sql, array('userid' => $userid, 'courseid' => $course->id))) {
-                if (!empty($timecompleted->timecompleted) && $date > $timecompleted->timecompleted) {
-                    $date = $timecompleted->timecompleted;
-                }
+    }
+    if ($iomadcertificate->printdate == '2') {
+        // Get the enrolment end date
+        $sql = "SELECT MAX(c.timecompleted) as timecompleted
+                  FROM {course_completions} c
+                 WHERE c.userid = :userid
+                   AND c.course = :courseid";
+            if ($timecompleted = $DB->get_record_sql($sql, array('userid' => $userid, 'courseid' => $course->id))) {
+            if (!empty($timecompleted->timecompleted) && $date > $timecompleted->timecompleted) {
+                $date = $timecompleted->timecompleted;
             }
         }
     }
@@ -1079,7 +1078,7 @@ function iomadcertificate_get_code($iomadcertificate, $certrecord) {
  * @param string $text the text to print
  * @param int $width horizontal dimension of text block
  */
-function iomadcertificate_print_text($pdf, $x, $y, $align, $font='freeserif', $style, $size = 10, $text, $width = 0) {
+function iomadcertificate_print_text($pdf, $x, $y, $align, $font='freeserif', $style = '', $size = 10, $text = '', $width = 0) {
     $pdf->setFont($font, $style, $size);
     $pdf->SetXY($x, $y);
     $pdf->writeHTMLCell($width, 0, '', '', $text, 0, 0, 0, true, $align);

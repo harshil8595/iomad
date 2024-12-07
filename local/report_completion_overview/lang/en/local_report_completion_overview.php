@@ -30,7 +30,7 @@ $string['privacy:metadata:local_report_user_lic_allocs:licenseid'] = 'License ID
 $string['privacy:metadata:local_report_user_lic_allocs:issuedate'] = 'License issue unix timestamp';
 $string['privacy:metadata:local_report_user_lic_allocs'] = 'Local report user license allocation user information';
 $string['hideexpiry'] = 'Highlight expire';
-$string['local/report_completion_overview:view'] = 'View course completion overview report';
+$string['report_completion_overview:view'] = 'View course completion overview report';
 $string['showexpiry'] = 'Highlight all';
 $string['showexpiryonly'] = 'Highlight course with valid length only';
 $string['showexpiryonly_help'] = 'If this option is checked then courses which do not have a validlength will not be displayed in colour in the graphical overview by default';
@@ -42,6 +42,24 @@ $string['coursesummary'] = 'Enrolled: {$a->enrolled}
 Started: {$a->timestarted}
 Completed: {$a->timecompleted}
 Expires: {$a->timeexpires}
+Grade: {$a->finalscore}';
+$string['coursesummary_extra_indate'] = 'Enrolled: {$a->enrolled}
+Started: {$a->timestarted}
+Completed: {$a->timecompleted}
+Expires: {$a->timeexpires}
+Grade: {$a->finalscore}
+Last completed: {$a->lastcompleted}
+Expires: {$a->timeexpired}';
+$string['coursesummary_extra_outdate'] = 'Enrolled: {$a->enrolled}
+Started: {$a->timestarted}
+Completed: {$a->timecompleted}
+Expires: {$a->timeexpires}
+Grade: {$a->finalscore}
+Last completed: {$a->lastcompleted}
+Expired: {$a->timeexpired}';
+$string['coursesummary_expired'] = 'Enrolled: {$a->enrolled}
+Started: {$a->timestarted}
+Expired: {$a->timeexpires}
 Grade: {$a->finalscore}';
 $string['coursesummary_noexpiry'] = 'Enrolled: {$a->enrolled}
 Started: {$a->timestarted}
@@ -58,12 +76,28 @@ Completed: {$a->timecompleted}
 Result: Passed';
 $string['coursesummary_partial'] = 'Completed: {$a->timecompleted}
 Expires: {$a->timeexpires}';
+$string['coursesummary_partial_extra_indate'] = 'Completed: {$a->timecompleted}
+Expires: {$a->timeexpires}
+Last completed: {$a->lastcompleted}
+Expires: {$a->timeexpired}';
+$string['coursesummary_partial_extra_outdate'] = 'Completed: {$a->timecompleted}
+Expires: {$a->timeexpires}
+Last completed: {$a->lastcompleted}
+Expired: {$a->timeexpired}';
 $string['report_completion_overview_title'] = 'Completion overview report';
 $string['notcompleted'] = 'In progress';
+$string['notcompleted-expiring'] = 'In progress (Due)';
+$string['notcompleted-indate'] = 'In progress (OK)';
+$string['notcompleted-outdate'] = 'In progress (Expired)';
 $string['notenrolled']  = 'Not enrolled';
+$string['notenrolled-expiring']  = 'Not enrolled (Due)';
+$string['notenrolled-indate']  = 'Not enrolled (OK)';
+$string['notenrolled-outdate']  = 'Not enrolled (Expired)';
 $string['indate'] = 'OK';
 $string['expiring'] = 'Due';
 $string['expired'] = 'Expired';
 $string['coursestatus'] = '{$a} status';
 $string['coursecompletion'] = '{$a} completion';
 $string['courseexpiry'] = '{$a} expiry';
+$string['bycourses'] = 'View by course';
+$string['byusers'] = 'View by user';

@@ -200,7 +200,7 @@ class EmailTemplate {
         $this->sender = $this->get_user($sender);
 
         if (!isset($this->user->email)) {
-            print_error("No user was specified or the specified user has no email to send $templatename to.");
+            throw new moodle_exception("No user was specified or the specified user has no email to send $templatename to.");
         }
 
         if (isset($this->user->id) && !isset($this->user->profile)) {
@@ -283,6 +283,16 @@ class EmailTemplate {
                 $email->body = $this->body();
                 $this->template->signature = '';
             }
+            // We get duplicate http(s):// in the body when we replace sometimes so strip them.
+            $search = ['http://http://http://',
+                       'https://https://https://',
+                       'http://http://',
+                       'https://https://'];
+            $replace = ['http://',
+                        'https://',
+                        'http://',
+                        'https://'];
+            $email->body = str_replace($search, $replace, $email->body);
             $email->varsreplaced = 1;
             $email->userid = $this->user->id;
             $email->due = $this->due;
@@ -495,7 +505,8 @@ class EmailTemplate {
                                $email->subject,
                                html_to_text($email->body),
                                $email->body,
-                               $attachment)) {
+                               $attachment,
+                               $email->companyid)) {
                 return false;
             }
             // Send to all of the to user emails.
@@ -508,7 +519,8 @@ class EmailTemplate {
                                            $email->subject,
                                            html_to_text($email->body),
                                            $email->body,
-                                           $attachment)) {
+                                           $attachment,
+                                           $email->companyid)) {
                             return false;
                         }
                     }
@@ -525,7 +537,8 @@ class EmailTemplate {
                                            $email->subject,
                                            html_to_text($email->body),
                                            $email->body,
-                                           $attachment)) {
+                                           $attachment,
+                                           $email->companyid)) {
                             return false;
                         }
                     }
@@ -542,7 +555,8 @@ class EmailTemplate {
                                                 $email->subject,
                                                 html_to_text($email->body),
                                                 $email->body,
-                                                $attachment)) {
+                                                $attachment,
+                                                $email->companyid)) {
                             return false;
                         }
                     }
@@ -559,7 +573,8 @@ class EmailTemplate {
                                                 $email->subject,
                                                 html_to_text($email->body),
                                                 $email->body,
-                                                $attachment)) {
+                                                $attachment,
+                                                $email->companyid)) {
                             return false;
                         }
                     }
@@ -579,7 +594,8 @@ class EmailTemplate {
                                                         $email->subject,
                                                         html_to_text($email->body),
                                                         $email->body,
-                                                        $attachment)) {
+                                                        $attachment,
+                                                        $email->companyid)) {
                                     return false;
                                 }
                             }
@@ -597,7 +613,8 @@ class EmailTemplate {
                                                     $email->subject,
                                                     html_to_text($email->body),
                                                     $email->body,
-                                                    $attachment)) {
+                                                    $attachment,
+                                                    $email->companyid)) {
                                 return false;
                             }
                         }
@@ -716,14 +733,16 @@ class EmailTemplate {
                                $supportuser,
                                 $email->subject,
                                 html_to_text($email->body),
-                                $email->body);
+                                $email->body,
+                                $this->companyid);
         } else {
             self::email_direct($user->email,
                                 $supportuser,
                                 $email->subject,
                                 html_to_text($email->body),
                                 $email->body,
-                                $this->attachment);
+                                $this->attachment,
+                                $this->companyid);
         }
 
         $this->email_supervisor;
@@ -764,38 +783,9 @@ class EmailTemplate {
         // Do we have a supervisor?
         if ($supervisoremails = company::get_usersupervisor($this->user->id)) {
             $mail = get_mailer();
-            if ($CFG->smtphosts == 'qmail') {
-                // Use Qmail system.
-                $mail->isQmail();
-
-            } else if (empty($CFG->smtphosts)) {
-                // Use PHP mail() = sendmail.
-                $mail->isMail();
-
-            } else {
-                // Use SMTP directly.
-                $mail->isSMTP();
-                if (!empty($CFG->debugsmtp)) {
-                    $mail->SMTPDebug = true;
-                }
-                // Specify main and backup servers.
-                $mail->Host          = $CFG->smtphosts;
-                // Specify secure connection protocol.
-                $mail->SMTPSecure    = $CFG->smtpsecure;
-                // Use previous keepalive.
-
-                if ($CFG->smtpuser) {
-                    // Use SMTP authentication.
-                    $mail->SMTPAuth = true;
-                    $mail->Username = $CFG->smtpuser;
-                    $mail->Password = $CFG->smtppass;
-                }
-            }
+            company::set_company_mailer($mail, $this->companyid);
 
             foreach ($supervisoremails as $supervisoremail) {
-                $mail->Sender = $CFG->noreplyaddress;
-                $mail->FromName = $supportuser->firstname;
-                $mail->From     = $CFG->noreplyaddress;
                 if (empty($CFG->divertallemailsto)) {
                     $mail->Subject = substr($subject, 0, 900);
                 } else {
@@ -830,43 +820,17 @@ class EmailTemplate {
      *
      *
      **/
-    private static function email_direct($emailaddress, $supportuser, $subject, $messagetext, $messagehtml = '', $attachment = null) {
+    private static function email_direct($emailaddress, $supportuser, $subject, $messagetext, $messagehtml = '', $attachment = null, $companyid = 0) {
         global $USER, $CFG;
 
         $mail = get_mailer();
-        if ($CFG->smtphosts == 'qmail') {
-            // Use Qmail system.
-            $mail->isQmail();
-
-        } else if (empty($CFG->smtphosts)) {
-            // Use PHP mail() = sendmail.
-            $mail->isMail();
-
-        } else {
-            // Use SMTP directly.
-            $mail->isSMTP();
-            if (!empty($CFG->debugsmtp)) {
-                $mail->SMTPDebug = true;
-            }
-            // Specify main and backup servers.
-            $mail->Host          = $CFG->smtphosts;
-            // Specify secure connection protocol.
-            $mail->SMTPSecure    = $CFG->smtpsecure;
-            // Use previous keepalive.
-
-            if ($CFG->smtpuser) {
-                // Use SMTP authentication.
-                $mail->SMTPAuth = true;
-                $mail->Username = $CFG->smtpuser;
-                $mail->Password = $CFG->smtppass;
-            }
-        }
+        company::set_company_mailer($mail, $companyid);
 
         if (!empty($supportuser->customheaders['From'])) {
             $mail->From = $supportuser->customheaders['From'];
             unset($supportuser->customheaders['Reply-to']);
         } else {
-            $mail->From = $CFG->noreplyaddress;
+            $mail->From = $mail->noreplyaddress;
         }
 
         if (!empty($supportuser->customheaders['Reply-to'])) {
@@ -877,7 +841,7 @@ class EmailTemplate {
             $mail->addCustomHeader($value);
         }
 
-        $mail->Sender = $CFG->noreplyaddress;
+        $mail->Sender = $mail->noreplyaddress;
         $mail->FromName = $supportuser->firstname;
         if (empty($CFG->divertallemailsto)) {
             $mail->Subject = substr($subject, 0, 900);
@@ -970,7 +934,7 @@ class EmailTemplate {
             // If $course is an integer, it is a course id, get the object from database.
             if (is_int($course) || is_string($course)) {
                 if (!$course = $DB->get_record('course', array('id' => $course), '*', MUST_EXIST)) {
-                    print_error('Course ID was incorrect');
+                    throw new moodle_exception('Course ID was incorrect');
                 }
             }
 
@@ -1004,7 +968,7 @@ class EmailTemplate {
                 if (isset($email[$templatename])) {
                     $template = (object) $email[$templatename];
                 } else {
-                    print_error("Email template '$templatename' not found");
+                    throw new moodle_exception("Email template '$templatename' not found");
                 }
             }
         }
@@ -1132,6 +1096,7 @@ class EmailTemplate {
                                 'user_removed_from_event' => 'user_removed_from_event',
                                 'user_reset' => 'user_reset',
                                 'user_signed_up_for_event' => 'user_signed_up_for_event',
+                                'user_signed_up_to_waitlist' => 'user_signed_up_to_waitlist',
                                 'user_suspended' => 'user_suspended',
                                 'user_unsuspended' => 'user_unsuspended');
 

@@ -381,7 +381,6 @@ $CFG->yui2version = '2.9.0';
 $CFG->yui3version = '3.17.2';
 
 // Patching the upstream YUI release.
-// For important information on patching YUI modules, please see http://docs.moodle.org/dev/YUI/Patching.
 // If we need to patch a YUI modules between official YUI releases, the yuipatchlevel will need to be manually
 // incremented here. The module will also need to be listed in the yuipatchedmodules.
 // When upgrading to a subsequent version of YUI, these should be reset back to 0 and an empty array.
@@ -904,6 +903,27 @@ if (!empty($CFG->profilingenabled)) {
 // Hack to get around max_input_vars restrictions,
 // we need to do this after session init to have some basic DDoS protection.
 workaround_max_input_vars();
+
+// IOMAD - Set the theme if the server hostname matches one of ours.
+if(!CLI_SCRIPT && !during_initial_install()){
+    // Does this match a company hostname?
+    if ($DB->get_manager()->table_exists('company') &&
+        ($companyrec = $DB->get_record('company', array('hostname' => $_SERVER['SERVER_NAME'])))) {
+        try {
+            $themeconfig = theme_config::load($companyrec->theme);
+            // Makes sure the theme can be loaded without errors.
+            if ($themeconfig->name === $companyrec->theme) {
+                $SESSION->theme = $companyrec->theme;
+            } else {
+                unset($SESSION->theme);
+            }
+            unset($themeconfig);
+            unset($urlthemename);
+        } catch (Exception $e) {
+            debugging('Failed to set the theme from the company hostname setting.', DEBUG_DEVELOPER, $e->getTrace());
+        }
+    }
+}
 
 // Process theme change in the URL.
 if (!empty($CFG->allowthemechangeonurl) and !empty($_GET['theme'])) {

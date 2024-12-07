@@ -162,17 +162,17 @@ class microlearning_thread_users_form extends \company_moodleform {
               <td id="buttonscell">
                       <input name="add" id="add" type="submit" value="&nbsp;' .
                       $output->larrow().'&nbsp;'. get_string('enrol', 'block_iomad_company_admin') .
-                       '" title="Enrol" /></br>
+                       '" title="Enrol" /><br>
                       <input name="addall" id="addall" type="submit" value="&nbsp;' .
                       $output->larrow().'&nbsp;'. get_string('enrolall', 'block_iomad_company_admin') .
-                      '" title="Enrolall" /></br>
+                      '" title="Enrolall" /><br>
 
                       <input name="remove" id="remove" type="submit" value="' .
                        $output->rarrow().'&nbsp;'. get_string('unenrol', 'block_iomad_company_admin') .
-                       '&nbsp;" title="Unenrol" /></br>
+                       '&nbsp;" title="Unenrol" /><br>
                       <input name="removeall" id="removeall" type="submit" value="&nbsp;' .
                       $output->rarrow().'&nbsp;'. get_string('unenrolall', 'block_iomad_company_admin') .
-                      '" title="Enrolall" /></br>
+                      '" title="Enrolall" /><br>
               </td>
               <td id="potentialcell">');
 
@@ -215,7 +215,7 @@ class microlearning_thread_users_form extends \company_moodleform {
 
                     // Check the userid is valid.
                     if (!\company::check_valid_user($this->selectedcompany, $adduser->id, $this->departmentid)) {
-                        print_error('invaliduserdepartment', 'block_iomad_company_management');
+                        throw new moodle_exception('invaliduserdepartment', 'block_iomad_company_management');
                     }
 
                     if ($allow) {
@@ -255,7 +255,7 @@ class microlearning_thread_users_form extends \company_moodleform {
                 foreach ($userstounassign as $removeuser) {
                     // Check the userid is valid.
                     if (!\company::check_valid_user($this->selectedcompany, $removeuser->id, $this->departmentid)) {
-                        print_error('invaliduserdepartment', 'block_iomad_company_management');
+                        throw new moodle_exception('invaliduserdepartment', 'block_iomad_company_management');
                     }
 
                     \microlearning::remove_thread_from_user($removeuser, $this->thread->id, $this->selectedcompany);

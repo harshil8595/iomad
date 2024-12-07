@@ -77,9 +77,6 @@ $PAGE->set_url($linkurl);
 $PAGE->set_pagelayout('base');
 $PAGE->set_title($linktext);
 $PAGE->set_heading(get_string('iomad_company_frameworks_title', 'block_iomad_company_admin'));
-if (empty($CFG->defaulthomepage)) {
-    $PAGE->navbar->add(get_string('dashboard', 'block_iomad_company_admin'), new moodle_url($CFG->wwwroot . '/my'));
-}
 $PAGE->navbar->add($linktext, $linkurl);
 
 // Set the companyid
@@ -94,7 +91,7 @@ if (empty($company) && !empty($companyid)) {
 if (!empty($update)) {
     // Need to change something.
     if (!$frameworkdetails = (array) $DB->get_record('iomad_frameworks', array('frameworkid' => $frameworkid))) {
-        print_error(get_string('invaliddetails', 'block_iomad_company_admin'));
+        throw new moodle_exception(get_string('invaliddetails', 'block_iomad_company_admin'));
     } else {
         if ('shared' == $update) {
             $previousshared = $frameworkdetails['shared'];
@@ -171,7 +168,7 @@ ksort($companyids);
 $companyselect = new single_select($linkurl, 'company', $companyids, $company);
 $companyselect->label = get_string('company', 'block_iomad_company_admin');
 $companyselect->formid = 'choosecompany';
-echo html_writer::tag('div', $OUTPUT->render($companyselect), array('id' => 'iomad_company_selector')).'</br>';
+echo html_writer::tag('div', $OUTPUT->render($companyselect), array('id' => 'iomad_company_selector')).'<br>';
 
 // Need a name search in here too.
 

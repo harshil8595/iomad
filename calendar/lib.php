@@ -2449,6 +2449,9 @@ function calendar_get_default_courses($courseid = null, $fields = '*', $canmanag
         $courses = enrol_get_users_courses($userid, true, $fields, 'c.shortname');
     }
 
+    // IOMAD - add in courses which are available to the user.
+    $courses = iomad::add_calendar_trainingevent_courses( $courses );
+
     if ($courseid && $courseid != SITEID) {
         if (empty($courses[$courseid]) && has_capability('moodle/calendar:manageentries', context_system::instance(), $userid)) {
             // Allow a site admin to see calendars from courses he is not enrolled in.
@@ -3552,6 +3555,18 @@ function calendar_get_view(\calendar_information $calendar, $view, $includenavig
             $data->showviewselector = true;
         } else if ($view == "upcoming_mini") {
             $template = 'core_calendar/calendar_upcoming_mini';
+        }
+    }
+
+    // Check if $data has events.
+    if (isset($data->events)) {
+        // Let's check and sanitize all "name" in $data->events before it's sent to front end.
+        foreach ($data->events as $d) {
+            $name = $d->name ?? null;
+            // Encode special characters if our decoded name does not match the original name.
+            if ($name && (html_entity_decode($name) !== $name)) {
+                $d->name = htmlspecialchars(html_entity_decode($name), ENT_QUOTES, 'utf-8');
+            }
         }
     }
 

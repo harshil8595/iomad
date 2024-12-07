@@ -30,8 +30,13 @@ $returnurl = optional_param('returnurl', '', PARAM_LOCALURL);
 $companyid = optional_param('companyid', 0, PARAM_INTEGER);
 $courses = optional_param_array('courses', array(), PARAM_INTEGER);
 $departmentid = optional_param('deptid', 0, PARAM_INTEGER);
-$selectedcourses = optional_param_array('selectedcourses', array('-1'), PARAM_INTEGER);
 $groupid = optional_param('groupid', 0, PARAM_INTEGER);
+
+if (isset($_POST['selectedcourses']) && is_array($_POST['selectedcourses'])) {
+    $selectedcourses = optional_param_array('selectedcourses', null, PARAM_INTEGER);
+} else {
+    $selectedcourses = ['-1'];
+}
 
 if (empty($courses) && !empty($selectedcourses)) {
     $courses = $selectedcourses;
@@ -96,7 +101,7 @@ $usersform = new \block_iomad_company_admin\forms\company_course_users_form($PAG
 
 // Check the department is valid.
 if (!empty($departmentid) && !company::check_valid_department($companyid, $departmentid)) {
-    print_error('invaliddepartment', 'block_iomad_company_admin');
+    throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
 }
 
 if ($coursesform->is_cancelled() || $usersform->is_cancelled() ||
@@ -104,7 +109,7 @@ if ($coursesform->is_cancelled() || $usersform->is_cancelled() ||
     if ($returnurl) {
         redirect($returnurl);
     } else {
-        redirect(new moodle_url('/my'));
+        redirect(new moodle_url($CFG->wwwroot .'/blocks/iomad_company_admin/index.php'));
     }
 } else {
     echo $output->header();

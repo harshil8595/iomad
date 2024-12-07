@@ -115,7 +115,7 @@ if (!empty($fileimport)) {
                                                 'validate_uploadcompletion_columns');
 
             if (!$columns = $cir->get_columns()) {
-               print_error('cannotreadtmpfile', 'error', $returnurl);
+               throw new moodle_exception('cannotreadtmpfile', 'error', $returnurl);
             }
 
             unset($content);
@@ -443,7 +443,7 @@ class upload_progress_tracker {
         echo '<th class="header c'.$ci++.'" scope="col">'.get_string('dateenrolled', 'local_report_completion').'</th>';
         echo '<th class="header c'.$ci++.'" scope="col">'.get_string('datestarted', 'local_report_completion').'</th>';
         echo '<th class="header c'.$ci++.'" scope="col">'.get_string('datecompleted', 'local_report_completion').'</th>';
-        echo '<th class="header c'.$ci++.'" scope="col">'.get_string('grade').'</th>';
+        echo '<th class="header c'.$ci++.'" scope="col">'.get_string('grade', 'grades').'</th>';
         echo '<th class="header c'.$ci++.'" scope="col">'.get_string('licensename', 'block_iomad_company_admin').'</th>';
         echo '<th class="header c'.$ci++.'" scope="col">'.get_string('licensedateallocated', 'block_iomad_company_admin').'</th>';
         echo '</tr>';
@@ -541,5 +541,3 @@ function validate_uploadcompletion_columns(&$columns) {
 
     return true;
 }
-
-

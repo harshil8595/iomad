@@ -101,7 +101,6 @@ class company_managers_form extends moodleform {
 
         if (count($this->potentialusers->find_users('')) || count($this->currentusers->find_users(''))) {
 
-            $mform->addElement('html', "(" . get_string('companymanagersforminfo', 'block_iomad_company_admin') . ")");
             $mform->addElement('html', '<table summary=""
                                         class="companymanagertable addremovetable generaltable generalbox boxaligncenter"
                                         cellspacing="0">
@@ -115,9 +114,11 @@ class company_managers_form extends moodleform {
                   <td id="buttonscell">
                       <p class="arrow_button">
                         <input name="add" id="add" type="submit" value="' . $output->larrow().'&nbsp;'.get_string('add') . '"
-                               title="' . print_string('add') .'" class="btn btn-secondary"/><br />
+                               title="' . get_string('departmentadduserhelp', 'block_iomad_company_admin') .'" class="btn btn-secondary"/><br /><br />
+                        <input name="move" id="move" type="submit" value="' . $output->larrow().'&nbsp;'.get_string('move') . '"
+                               title="' . get_string('departmentmoveuserhelp', 'block_iomad_company_admin') .'" class="btn btn-secondary"/><br /><br />
                         <input name="remove" id="remove" type="submit" value="'. get_string('remove').'&nbsp;'.$output->rarrow(). '"
-                               title="'. print_string('remove') .'" class="btn btn-secondary"/><br />
+                               title="'. get_string('departmentremoveuserhelp', 'block_iomad_company_admin') .'" class="btn btn-secondary"/><br />
                      </p>
                   </td>
                   <td id="potentialcell">');
@@ -134,13 +135,21 @@ class company_managers_form extends moodleform {
             $this->selectedcompany).
             '">Create one now</a>');
         }
+
+        // Disable the onchange popup.
+        $mform->disable_form_change_checker();
+
     }
 
     public function process($departmentid, $roletype) {
         global $DB, $USER, $CFG;
 
+        $adding = optional_param('add', false, PARAM_BOOL);
+        $moving = optional_param('move', false, PARAM_BOOL);
+        $removing = optional_param('remove', false, PARAM_BOOL);
+
         // Process incoming assignments.
-        if (optional_param('add', false, PARAM_BOOL) && confirm_sesskey()) {
+        if (($adding || $moving) && confirm_sesskey()) {
             $userstoassign = $this->potentialusers->get_selected_users();
             if (!empty($userstoassign)) {
                 foreach ($userstoassign as $adduser) {
@@ -157,7 +166,7 @@ class company_managers_form extends moodleform {
                                                                                      'roletype' => 1,
                                                                                      'companyid' => $this->selectedcompany))) {
                             // We are not assigning an external company manager AND the userid is not valid for this company
-                            print_error('invaliduserdepartment', 'block_iomad_company_management');
+                            throw new moodle_exception('invaliduserdepartment', 'block_iomad_company_management');
                         }
                     }
 
@@ -176,7 +185,7 @@ class company_managers_form extends moodleform {
                         $educator = false;
                     }
                     // Do the actual work.
-                    company::upsert_company_user($adduser->id, $this->selectedcompany, $departmentid, $roletype, $educator);
+                    company::upsert_company_user($adduser->id, $this->selectedcompany, $departmentid, $roletype, $educator, false, $moving);
                 }
 
                 $this->potentialusers->invalidate_selected_users();
@@ -185,14 +194,14 @@ class company_managers_form extends moodleform {
         }
 
         // Process incoming unassignments.
-        if (optional_param('remove', false, PARAM_BOOL) && confirm_sesskey()) {
+        if ($removing && confirm_sesskey()) {
             $userstounassign = $this->currentusers->get_selected_users();
             if (!empty($userstounassign)) {
                 foreach ($userstounassign as $removeuser) {
 
-                        // Check the userid is valid.
+                    // Check the userid is valid.
                     if (!company::check_valid_user($this->selectedcompany, $removeuser->id, $this->departmentid)) {
-                        print_error('invaliduserdepartment', 'block_iomad_company_management');
+                        throw new moodle_exception('invaliduserdepartment', 'block_iomad_company_management');
                     }
 
                     // Get the current company_users record.

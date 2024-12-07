@@ -2087,7 +2087,7 @@ a.disabled {
     text-decoration: none;
     cursor: default;
     font-style: italic;
-    color: #808080;
+    color: $text-muted;
 }
 
 body.lockscroll {
@@ -2413,6 +2413,10 @@ $footer-link-color: $bg-inverse-link-color !default;
             font-size: 0.7rem;
         }
     }
+}
+
+.dropdown-menu {
+    width: fit-content;
 }
 
 .competency-tree {
@@ -3055,7 +3059,14 @@ blockquote {
     margin: 0 0.5rem 1rem;
     padding-left: 1rem;
     color: $gray-700;
-    border-left: 5px solid $gray-400;
+    border-left: 5px solid $gray-500;
+}
+
+.pagelayout-maintenance,
+.pagelayout-secure {
+    .page-header-headings {
+        background-color: $body-bg;
+    }
 }
 
 /* Prevent long strings exceeding page width */

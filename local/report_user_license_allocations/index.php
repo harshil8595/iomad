@@ -207,7 +207,7 @@ $PAGE->requires->js_call_amd('block_iomad_company_admin/department_select', 'ini
 
 // Check the department is valid.
 if (!empty($departmentid) && !company::check_valid_department($companyid, $departmentid)) {
-    print_error('invaliddepartment', 'block_iomad_company_admin');
+    throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
 }
 
 $baseurl = new moodle_url(basename(__FILE__), $params);
@@ -309,14 +309,17 @@ if (!$table->is_downloading()) {
             $options['licenseallocatedtoraw'] = $licenseallocatedto;
             $options['licenseunallocatedfromraw'] = $licenseunallocatedfrom;
             $options['licenseunallocatedtoraw'] = $licenseunallocatedto;
-            $mform = new iomad_user_filter_form(null, $options);
+            $mform = new \local_iomad\forms\user_search_form(null, $options);
             $mform->set_data(array('departmentid' => $departmentid));
 
             $mform->set_data($options);
             $mform->get_data();
 
             // Display the user filter form.
+            echo html_writer::start_tag('div', ['class' => 'iomadusersearchform']);
             $mform->display();
+            echo html_writer::end_tag('div');
+            echo html_writer::start_tag('div', array('class' => 'iomadclear'));
         }
     }
 }

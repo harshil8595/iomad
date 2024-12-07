@@ -77,7 +77,7 @@ $companyid = iomad::get_my_companyid($context);
 // Delete any valid groups.
 if ($deleteid && confirm_sesskey()) {
     if (!$group = $DB->get_record('microlearning_thread_group', array('id' => $deleteid))) {
-        print_error('nogroup', 'block_iomad_microlearning');
+        throw new moodle_exception('nogroup', 'block_iomad_microlearning');
     }
 
     if ($confirm == md5($deleteid)) {
@@ -130,9 +130,13 @@ $table->no_sorting('actions');
 
 echo $output->header();
 
-echo '<div class="buttons">';
-echo $OUTPUT->single_button(new moodle_url('group_edit_form.php'), get_string('creategroup', 'block_iomad_microlearning'));
-echo '</div>';
+// If there are no threads - don't show the button to add.
+if ($DB->get_records_menu('microlearning_thread', ['companyid' => $companyid],  'name', 'id,name')) {
+    echo '<div class="buttons">';
+    echo $OUTPUT->single_button(new moodle_url('group_edit_form.php'), get_string('creategroup', 'block_iomad_microlearning'));
+    echo '</div>';
+}
+
 $table->out(30, true);
 
 echo $output->footer();

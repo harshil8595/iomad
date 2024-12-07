@@ -27,8 +27,9 @@ require_once(dirname('__FILE__').'/lib.php');
 require_once($CFG->libdir.'/adminlib.php');
 require_once($CFG->dirroot.'/user/filters/lib.php');
 require_once($CFG->dirroot.'/blocks/iomad_company_admin/lib.php');
+require_once($CFG->dirroot.'/course/lib.php');
 
-$companyid    = optional_param('companyid', 0, PARAM_CLEAN);
+$companyid    = optional_param('companyid', 0, PARAM_INTEGER);
 $coursesearch      = optional_param('coursesearch', '', PARAM_CLEAN);// Search string.
 $courseid = optional_param('courseid', 0, PARAM_INTEGER);
 $update = optional_param('update', null, PARAM_ALPHA);
@@ -42,6 +43,8 @@ $notifyperiod = optional_param('notifyperiod', 0, PARAM_INTEGER);
 $expireafter = optional_param('expireafter', 0, PARAM_INTEGER);
 $hasgrade = optional_param('hasgrade', 1, PARAM_INTEGER);
 $deleteid = optional_param('deleteid', 0, PARAM_INT);
+$hideid = optional_param('hideid', 0, PARAM_INT);
+$showid = optional_param('showid', 0, PARAM_INT);
 $confirm = optional_param('confirm', null, PARAM_ALPHANUM);
 $edit = optional_param('edit', -1, PARAM_BOOL);
 
@@ -51,6 +54,22 @@ $params['companyid'] = $companyid;
 $params['coursesearch'] = $coursesearch;
 if ($courseid) {
     $params['courseid'] = $courseid;
+}
+
+// Get course customfields.
+$usedfields = [];
+$customfields = $DB->get_records_sql("SELECT cff.* FROM
+                                      {customfield_field} cff 
+                                      JOIN {customfield_category} cfc ON (cff.categoryid = cfc.id)
+                                      WHERE cfc.area = 'course'
+                                      AND cfc.component = 'core_course'
+                                      ORDER BY cfc.sortorder, cff.sortorder");
+foreach ($customfields as $customfield) {
+    ${'customfield_' . $customfield->shortname} = optional_param('customfield_' . $customfield->shortname, null, PARAM_ALPHANUMEXT);
+    if (!empty(${'customfield_' . $customfield->shortname})) {
+        $params['customfield_' . $customfield->shortname] = ${'customfield_' . $customfield->shortname};
+        $usedfields[$customfield->id] = ${'customfield_' . $customfield->shortname};
+    }
 }
 
 // Deal with edit buttons.
@@ -111,7 +130,7 @@ $company = new company($mycompanyid);
 // Delete any valid courses.
 if (!empty($deleteid)) {
     if (!$course = $DB->get_record('course', array('id' => $deleteid))) {
-        print_error('invalidcourse');
+        throw new moodle_exception('invalidcourse');
     }
     if (confirm_sesskey() && $confirm == md5($deleteid)) {
         $destroy = optional_param('destroy', 0, PARAM_INT);
@@ -152,7 +171,7 @@ if (!empty($deleteid)) {
         if (iomad::has_capability('block/iomad_company_admin:destroycourses', $systemcontext)) {
             $message = get_string('deleteanddestroycoursesfull', 'block_iomad_company_admin', $course->fullname);
         } else {
-            $message = get_string('deleteacoursesfull', 'block_iomad_company_admin', $course->fullname);
+            $message = get_string('deletecoursesfull', 'block_iomad_company_admin', $course->fullname);
         }
         $confirmhtml = $OUTPUT->box_start('generalbox modal modal-dialog modal-in-page show', 'notice', $attributes);
         $confirmhtml .= $OUTPUT->box_start('modal-content', 'modal-content');
@@ -181,10 +200,61 @@ if (!empty($deleteid)) {
         die;
     }
 }
+// Hide/show courses.
+if(!empty($hideid) && iomad::has_capability('block/iomad_company_admin:managecourses', $systemcontext)) {    
+    if (!$course = $DB->get_record('course', array('id' => $hideid))) {
+        throw new moodle_exception('invalidcourse');
+    }
+    if (confirm_sesskey()) {
+        $record = get_course($hideid);
+        $course = new core_course_list_element($record);
+        course_change_visibility($course->id, false);
+    }
+}
+if(!empty($showid) && iomad::has_capability('block/iomad_company_admin:managecourses', $systemcontext)) {
+    if (!$course = $DB->get_record('course', array('id' => $showid))) {
+        throw new moodle_exception('invalidcourse');
+    } 
+    if (confirm_sesskey()) {
+        $record = get_course($showid);
+        $course = new core_course_list_element($record);
+        course_change_visibility($course->id, true);
+    }
+}
+
+// Deal with any custom field searches.
+$fieldcourseids = [];
+if (!empty($usedfields)) {
+    $foundfields = [];
+    foreach ($usedfields as $fieldid => $fieldsearchvalue) {
+        if ($customfields[$fieldid]->type == 'text' || $customfields[$fieldid]->type == 'text' ) {
+            $fieldsql = "fieldid = :fieldid AND " . $DB->sql_like('value', ':fieldsearchvalue');
+            $fieldsearchvalue = '%' . $fieldsearchvalue . '%';
+        } else {
+            $fieldsql = "value = :fieldsearchvalue AND fieldid = :fieldid";
+        }
+        $foundfields[] = $DB->get_records_sql("SELECT instanceid FROM {customfield_data} WHERE $fieldsql", ['fieldsearchvalue' => $fieldsearchvalue, 'fieldid' => $fieldid]);
+    }
+
+    // Sort the keys to be unique.
+    $fieldcourseids = array_pop($foundfields);
+    if (!empty($foundfields)) {
+        foreach ($foundfields as $foundfield) {
+            $fieldcourseids = array_intersect_key($fieldcourseids, $foundfield);
+            if (empty($fieldcourseids)) {
+                break;
+            }
+        }
+    }
+    if (empty($fieldcourseids)) {
+        $fieldcourseids[0] = "We didn't find any courses";
+    }
+}
+
 $baseurl = new moodle_url(basename(__FILE__), $params);
 $returnurl = $baseurl;
 
-$mform = new iomad_course_search_form($baseurl, $params);
+$mform = new \local_iomad\forms\course_search_form($baseurl, $params);
 $mform->set_data($params);
 
 echo $OUTPUT->header();
@@ -193,18 +263,18 @@ echo $OUTPUT->header();
 $companyids = company::get_companies_select(false);
 if ($caneditall) {
     $companyids = [
-            'none' => get_string('nocompany', 'block_iomad_company_admin'),
-            'all' => get_string('allcourses', 'block_iomad_company_admin')
+            '-1' => get_string('nocompany', 'block_iomad_company_admin'),
+            '-2' => get_string('allcourses', 'block_iomad_company_admin')
     ] + $companyids;
 }
 
 $companyselect = new single_select($linkurl, 'companyid', $companyids, $companyid);
 $companyselect->label = get_string('filtercompany', 'block_iomad_company_admin');
-echo html_writer::start_tag('div', array('class' => 'reporttablecontrolscontrol'));
+echo html_writer::start_tag('div', array('class' => 'iomadclear controlitems'));
 if ($canedit) {
-    echo html_writer::tag('div', $OUTPUT->render($companyselect), array('id' => 'iomad_company_selector')).'</br>';
+    echo html_writer::tag('div', $OUTPUT->render($companyselect), array('id' => 'iomad_company_selector'));
 }
-echo html_writer::start_tag('div', array('class' => 'searchcourseform'));
+echo html_writer::start_tag('div', array('class' => 'iomadcoursesearchform'));
 $mform->display();
 echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');
@@ -212,7 +282,7 @@ echo html_writer::start_tag('div', array('class' => 'iomadclear'));
 
 $table = new \block_iomad_company_admin\tables\iomad_courses_table('iomad_courses_table');
 
-if ($companyid == 'all') {
+if ($companyid == '-2') {
     $companyid = 0;
 }
 
@@ -221,7 +291,7 @@ $searchsql = "";
 $autoselect = "";
 $autofrom = "";
 if (!empty($companyid)) {
-    if ($companyid == "none") {
+    if ($companyid == "-1") {
         $companysql = " c.id NOT IN (SELECT courseid FROM {company_course}) ";
     } else {
         $companysql = " (c.id IN (
@@ -241,6 +311,9 @@ if (!empty($coursesearch)) {
     $params['coursesearch'] = "%" . $params['coursesearch'] ."%";
     $params['coursesearchtext'] = $coursesearch;
 }
+if (!empty($fieldcourseids)) {
+    $searchsql .= " AND c.id IN (" . implode(',', array_keys($fieldcourseids)) . ")";
+}
 
 // Set up the SQL for the table.
 $selectsql = "ic.id,
@@ -255,6 +328,7 @@ $selectsql = "ic.id,
               ic.expireafter,
               ic.warnnotstarted,
               ic.hasgrade,
+              c.visible,
               '$companyid' AS companyid
               $autoselect";
 $fromsql = "{iomad_courses} ic JOIN {course} c ON (ic.courseid = c.id) $autofrom ";
@@ -262,32 +336,45 @@ $wheresql = "$companysql $searchsql";
 $sqlparams = $params;
 
 // Set up the headers for the table.
-$tableheaders = [
-    get_string('company', 'block_iomad_company_admin'),
-    get_string('course'),
+$tableheaders = [];
+$tablecolumns = [];
+if (iomad::has_capability('block/iomad_company_admin:company_view_all', $systemcontext)) {
+    $tableheaders[] = get_string('company', 'block_iomad_company_admin');
+    $tablecolumns[] = 'company';
+}
+$tableheaders = array_merge($tableheaders,
+   [get_string('course'),
     get_string('licensed', 'block_iomad_company_admin') . $OUTPUT->help_icon('licensed', 'block_iomad_company_admin'),
-    get_string('shared', 'block_iomad_company_admin')  . $OUTPUT->help_icon('shared', 'block_iomad_company_admin'),
     get_string('validfor', 'block_iomad_company_admin') . $OUTPUT->help_icon('validfor', 'block_iomad_company_admin'),
     get_string('expireafter', 'block_iomad_company_admin') . $OUTPUT->help_icon('expireafter', 'block_iomad_company_admin'),
     get_string('warnexpire', 'block_iomad_company_admin') . $OUTPUT->help_icon('warnexpire', 'block_iomad_company_admin'),
     get_string('warnnotstarted', 'block_iomad_company_admin') . $OUTPUT->help_icon('warnnotstarted', 'block_iomad_company_admin'),
     get_string('warncompletion', 'block_iomad_company_admin') . $OUTPUT->help_icon('warncompletion', 'block_iomad_company_admin'),
     get_string('notifyperiod', 'block_iomad_company_admin') . $OUTPUT->help_icon('notifyperiod', 'block_iomad_company_admin'),
-    get_string('hasgrade', 'block_iomad_company_admin') . $OUTPUT->help_icon('hasgrade', 'block_iomad_company_admin')];
-$tablecolumns = ['company',
-                 'coursename',
+    get_string('hasgrade', 'block_iomad_company_admin') . $OUTPUT->help_icon('hasgrade', 'block_iomad_company_admin')]);
+$tablecolumns = array_merge($tablecolumns,
+                ['coursename',
                  'licensed',
-                 'shared',
                  'validlength',
                  'expireafter',
                  'warnexpire',
                  'warnnotstarted',
                  'warncompletion',
                  'notifyperiod',
-                 'hasgrade'];
-if (!empty($companyid) && $companyid != "none") {
+                 'hasgrade']);
+if (!empty($companyid) && $companyid != "-1") {
     $tableheaders[] = get_string('autocourses', 'block_iomad_company_admin');
     $tablecolumns[] = 'autoenrol';
+}
+// Is the user a company manager? If not show course sharing details, otherwise keep these hidden
+if (iomad::has_capability('block/iomad_company_admin:company_add', $systemcontext)) {
+    $tableheaders[] = get_string('shared', 'block_iomad_company_admin')  . $OUTPUT->help_icon('shared', 'block_iomad_company_admin');
+    $tablecolumns[] = 'shared';	
+}
+// If not editing, show course visibility. Otherwise use the actions column
+if (empty($USER->editing)){
+    $tableheaders[] = get_string('coursevisibility');
+    $tablecolumns[] = 'coursevisibility';
 }
 
 // Can we manage the courses or just see them?

@@ -53,7 +53,14 @@ if (is_siteadmin($USER->id)) {
     $approvaltype = 'both';
 } else {
     // What type of manager am I?
-    if ($companyuser = $DB->get_record('company_users', array('userid' => $USER->id, 'companyid' => $companyid))) {
+    if ($companyusers = $DB->get_records_sql("SELECT DISTINCT managertype
+                                                      FROM {company_users}
+                                                      WHERE userid = :userid
+                                                      AND companyid = :companyid
+                                                      AND managertype > 0
+                                                      ORDER BY id",
+                                                      ['userid' => $USER->id, 'companyid' => $companyid], 0, 1)) {
+                $companyuser = array_shift($companyusers);
         if ($companyuser->managertype == 2) {
             $approvaltype = 'manager';
         } else if ($companyuser->managertype == 1) {
@@ -88,11 +95,22 @@ if ($data = $callform->get_data()) {
                 // Get the room info.
                 $roominfo = $DB->get_record('classroom', array('id' => $event->classroomid));
 
+                // Work out the capacity for the training event.
+                if (!empty($activity->coursecapacity)) {
+                    $maxcapacity = $activity->coursecapacity;
+                } else {
+                    if (empty($roominfo->isvirtual)) {
+                        $maxcapacity = $roominfo->capacity;
+                    } else {
+                        $maxcapacity = 99999999999999999999;
+                    }
+                }
+
                 // Get the number of current attendees.
                 $numattendees = $DB->count_records('trainingevent_users', array('trainingeventid' => $event->id, 'waitlisted' => 0));
 
                 // Is the event full?
-                if ($numattendees >= $roominfo->capacity && $dataresult == 1) {
+                if ($numattendees > $maxcapacity && $dataresult == 1) {
                     continue;
                 }
 
@@ -280,19 +298,19 @@ if ($data = $callform->get_data()) {
                                                                                                            'userid' => $USER->id,
                                                                                                            'relateduserid' => $result->userid,
                                                                                                            'objectid' => $event->id,
-                                                                                                           'courseid' => $event->course));
+                                                                                                           'courseid' => $approvecourse->id));
                             $moodleevent->trigger();
     
                             // Do we need to notify teachers?
                             if (!empty($event->emailteachers)) {
                                 // Are we using groups?
-                                $usergroups = groups_get_user_groups($course->id, $approveuser->id);
+                                $usergroups = groups_get_user_groups($approvecourse->id, $approveuser->id);
                                 $userteachers = [];
                                 foreach ($usergroups as $usergroup => $junk) {
                                     $userteachers = $userteachers + get_enrolled_users($context, 'mod/trainingevent:viewattendees', $usergroup);
                                 } 
                                 foreach ($userteachers as $userteacher) {
-                                    EmailTemplate::send('user_signed_up_for_event_teacher', array('course' => $course,
+                                    EmailTemplate::send('user_signed_up_for_event_teacher', array('course' => $approvecourse,
                                                                                                   'approveuser' => $approveuser,
                                                                                                   'user' => $userteacher,
                                                                                                   'classroom' => $location,

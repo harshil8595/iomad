@@ -205,6 +205,21 @@ class company {
     }
 
     /**
+     * Gets the relative URL given wwwroot for the current instance
+     *
+     * @return URL
+     *
+     **/
+    public static function get_relativeurl($url) {
+        $u = parse_url($url);
+        if (empty($u["path"])) {
+             $u["path"] = "";
+        }
+        // Return the relative URL.
+        return $u["path"] . (isset($u["query"]) ? "?$u[query]" : "");
+    }
+
+    /**
      * Recurses up the company tree to get the parent company.
      *
      * @return int
@@ -270,45 +285,69 @@ class company {
      *
      */
     public static function get_companies_select($showsuspended=false) {
-        global $DB, $USER;
+        global $CFG, $DB, $USER;
 
         // Is this an admin, or a normal user?
         if (iomad::has_capability('block/iomad_company_admin:company_view_all', context_system::instance())) {
-            if ($showsuspended) {
-                $companies = $DB->get_recordset('company', ['parentid' => 0], 'name', '*');
-            } else {
-                $companies = $DB->get_recordset('company', ['suspended' => 0, 'parentid' => 0], 'name', '*');
+            $sqlparams = [];
+            $sqlwhere = "";
+            if (!empty($CFG->iomad_show_company_structure)) {
+                $sqlparams['parentid'] = 0;
+                $sqlwhere .= " AND parentid = :parentid ";
             }
+            if (!$showsuspended) {
+                $sqlparams['suspended'] = 0;
+                $sqlwhere .= " AND suspended = :suspended ";
+            }
+            $companies = $DB->get_records_sql_menu("SELECT id, IF (suspended=0, name, concat(name, ' (S)')) AS name FROM {company}
+                                                    WHERE 1 = 1
+                                                    $sqlwhere
+                                                    ORDER BY name",
+                                                    $sqlparams);
         } else {
             if ($showsuspended) {
                 $suspendedsql = '';
             } else {
                 $suspendedsql = "AND suspended = 0";
             }
-            $companies = $DB->get_recordset_sql("SELECT * FROM {company}
-                                                 WHERE id IN (
-                                                   SELECT companyid FROM {company_users}
-                                                   WHERE userid = :userid )
-                                                 AND parentid NOT IN (
-                                                   SELECT companyid FROM {company_users}
-                                                   WHERE userid = :userid2 )
-                                                 $suspendedsql
-                                                 ORDER BY name",
-                                                 ['userid' => $USER->id,
-                                                  'userid2' => $USER->id,
-                                                  'suspended' => $showsuspended]);
-        }
-        $companyselect = array();
-        foreach ($companies as $company) {
-            if (empty($company->suspended)) {
-                $companyselect[$company->id] = format_string($company->name);
+            // Show the hierarchy if required.
+            if (!empty($CFG->iomad_show_company_structure)) {
+                $companies = $DB->get_records_sql_menu("SELECT id, IF (suspended=0, name, concat(name, ' (S)')) AS name FROM {company}
+                                                        WHERE id IN (
+                                                          SELECT companyid FROM {company_users}
+                                                          WHERE userid = :userid )
+                                                        AND parentid NOT IN (
+                                                          SELECT companyid FROM {company_users}
+                                                          WHERE userid = :userid2 )
+                                                        $suspendedsql
+                                                        ORDER BY name",
+                                                        ['userid' => $USER->id,
+                                                         'userid2' => $USER->id,
+                                                         'suspended' => $showsuspended]);
             } else {
-                $companyselect[$company->id] = format_string($company->name . '(S)');
+                $companies = $DB->get_records_sql_menu("SELECT id, IF (suspended=0, name, concat(name, ' (S)')) AS name FROM {company}
+                                                        WHERE id IN (
+                                                          SELECT companyid FROM {company_users}
+                                                          WHERE userid = :userid )
+                                                        $suspendedsql
+                                                        ORDER BY name",
+                                                        ['userid' => $USER->id,
+                                                         'userid2' => $USER->id,
+                                                         'suspended' => $showsuspended]);
             }
-            $allchildren = self::get_formatted_child_companies_select($company->id);
-            $companyselect = $companyselect + $allchildren;
         }
-        return $companyselect;
+        // Show the hierarchy if required.
+        if (!empty($CFG->iomad_show_company_structure)) {
+            $companyselect = array();
+            foreach ($companies as $id => $companyname) {
+                $companyselect[$id] = $companyname;
+                $allchildren = self::get_formatted_child_companies_select($id);
+                $companyselect = $companyselect + $allchildren;
+            }
+            return $companyselect;
+        } else {
+            return $companies;
+        }
     }
 
     private static function get_formatted_child_companies_select($companyid, &$companyarray = [], $prepend = "") {
@@ -919,7 +958,7 @@ class company {
         $params['companyid'] = $this->id;
         $params['companyidforjoin'] = $this->id;
 
-        $sql = " SELECT u.id, u.id AS mid
+        $sql = " SELECT DISTINCT u.id, u.id AS mid
                 FROM
                     {company_users} cu
                     INNER JOIN {user} u ON (cu.userid = u.id)
@@ -1002,7 +1041,7 @@ class company {
             if ($ws) {
                 return false;
             } else {
-                print_error(get_string('cantassignusersdb', 'block_iomad_company_admin'));
+                throw new moodle_exception(get_string('cantassignusersdb', 'block_iomad_company_admin'));
             }
         }
 
@@ -1016,7 +1055,7 @@ class company {
     }
 
 
-    public static function upsert_company_user($userid, $companyid, $departmentid, $managertype, $educator=false, $ws=false) {
+    public static function upsert_company_user($userid, $companyid, $departmentid, $managertype, $educator=false, $ws=false, $move = false) {
         global $DB, $CFG;
 
         $assign = [
@@ -1063,6 +1102,7 @@ class company {
             $companycourses[$sharedcourse->courseid] = $sharedcourse;
         }
 
+        // Does the user exist in the department?
         if (!$user=$DB->get_record('company_users', $assign)) {
             if (($managertype == 1 || $managertype == 2) && $CFG->iomad_autoenrol_managers) {
                 $assign['educator'] = 1;
@@ -1070,8 +1110,18 @@ class company {
                 $assign['educator'] = $educator;
             }   
 
+            // Add the user to the new department.
             $success = $DB->insert_record('company_users',
                 array_merge($assign,['managertype'=>$managertype,'departmentid'=>$departmentid]));
+
+            // Are we moving the user?
+            if ($move) {
+                $DB->delete_records_select('company_users',
+                                           'companyid = :companyid AND userid = :userid AND departmentid != :departmentid',
+                                           ['companyid' => $companyid,
+                                            'userid' => $userid,
+                                            'departmentid' => $departmentid]);
+            }
             if ($managertype == 1 &&
                        $DB->get_records_sql('SELECT id FROM {company_users}
                                             WHERE
@@ -1180,6 +1230,7 @@ class company {
                 $DB->set_field('company_users', 'managertype', 4, ['companyid' => $companyid, 'userid' => $userid]);
             }
         } else {
+            // Changing a user that is currently in the department.
             $s = [];
             if($user->departmentid != $departmentid) {
                 $s['departmentid'] = $departmentid;
@@ -1422,7 +1473,7 @@ class company {
             }
         }
         if(!$success) {
-            print_error(get_string('cantassignusersdb', 'block_iomad_company_admin'));
+            throw new moodle_exception(get_string('cantassignusersdb', 'block_iomad_company_admin'));
         }
 
         // Create an event for this.
@@ -1430,7 +1481,8 @@ class company {
                             'companyid' => $company->id,
                             'departmentid' => $departmentid,
                             'usertype' => $managertype,
-                            'usertypename' => $managertypes[$managertype]);
+                            'usertypename' => $managertypes[$managertype],
+                            'moved' => $move);
         $event = \block_iomad_company_admin\event\company_user_assigned::create(array('context' => $systemcontext,
                                                                                       'objectid' => $company->id,
                                                                                       'userid' => $userid,
@@ -1461,7 +1513,7 @@ class company {
             if ($ws) {
                 return false;
             } else {
-                print_error(get_string('cantassignusersdb', 'block_iomad_company_admin'));
+                throw new moodle_exception(get_string('cantassignusersdb', 'block_iomad_company_admin'));
             }
         }
 
@@ -2114,10 +2166,19 @@ class company {
      * Returns array()
      *
      **/
-    public static function get_all_subdepartments($parentnodeid, $addchildcompanies = true) {
+    public static function get_all_subdepartments($parentnodeid, $addchildcompanies = false) {
+        global $PAGE;
+
+        // format_string() references $PAGE context so nee to set that if it's not already set.
+        $options = [];
+        if (empty($PAGE->context)) {
+            // format string needs the context.
+            $options['context'] = context_system::instance();
+        }
+
         $parentnode = self::get_departmentbyid($parentnodeid);
         $parentlist = array();
-        $parentlist[$parentnodeid] = format_string($parentnode->name);
+        $parentlist[$parentnodeid] = format_string($parentnode->name, true, $options);
         $departmenttree = self::get_subdepartments($parentnode);
         if ($addchildcompanies) {
             $currentcompany = new company($parentnode->company);
@@ -2125,7 +2186,7 @@ class company {
                 foreach ($childcompanies as $childcompany) {
                     $childnode = self::get_company_parentnode($childcompany->id);
                     $childtree = self::get_subdepartments($childnode);
-                    $childlist[$childnode->id] = format_string($childnode->name);
+                    $childlist[$childnode->id] = format_string($childnode->name, true, $options);
                     $departmenttree->children[] = $childtree;
                     
                 }
@@ -2133,7 +2194,7 @@ class company {
         }
 
         $departmentlist = self::array_flatten($parentlist +
-                                              self::get_department_list($departmenttree));
+                          self::get_department_list($departmenttree));
 
         return $departmentlist;
     }
@@ -2353,7 +2414,7 @@ class company {
                 if ($ws) {
                     return false;
                 } else {
-                    print_error(get_string('cantupdatedepartmentusersdb', 'block_iomad_company_admin'));
+                    throw new moodle_exception(get_string('cantupdatedepartmentusersdb', 'block_iomad_company_admin'));
                 }
             }
         }
@@ -2390,12 +2451,12 @@ class company {
         if (isset($newdepartment['id'])) {
             // We are editing a current department.
             if (!$DB->update_record('department', $newdepartment)) {
-                print_error(get_string('cantupdatedepartmentdb', 'block_iomad_company_admin'));
+                throw new moodle_exception(get_string('cantupdatedepartmentdb', 'block_iomad_company_admin'));
             }
         } else {
             // Adding a new department.
             if (!$DB->insert_record('department', $newdepartment)) {
-                print_error(get_string('cantinsertdepartmentdb', 'block_iomad_company_admin'));
+                throw new moodle_exception(get_string('cantinsertdepartmentdb', 'block_iomad_company_admin'));
             }
         }
 
@@ -2412,7 +2473,7 @@ class company {
     public static function delete_department($departmentid) {
         global $DB;
         if (!$DB->delete_records('department', array('id' => $departmentid))) {
-            print_error(get_string('cantdeletedepartmentdb', 'blocks_iomad_company_admin'));
+            throw new moodle_exception(get_string('cantdeletedepartmentdb', 'blocks_iomad_company_admin'));
         }
         return true;
     }
@@ -2554,7 +2615,7 @@ class company {
                     //  Update it.
                     $currentcourse->departmentid = $departmentid;
                     if (!$DB->update_record('company_course', $currentcourse)) {
-                        print_error(get_string('cantupdatedepartmentcoursesdb',
+                        throw new moodle_exception(get_string('cantupdatedepartmentcoursesdb',
                                                'block_iomad_company_admin'));
                     }
                     break;
@@ -2567,7 +2628,7 @@ class company {
                 $courserecord['courseid'] = $courseid;
                 $courserecord['companyid'] = $companyid;
                 if (!$DB->insert_record('company_course', $courserecord)) {
-                    print_error(get_string('cantinsertdepartmentcoursesdb',
+                    throw new moodle_exception(get_string('cantinsertdepartmentcoursesdb',
                                            'block_iomad_company_admin'));
                 }
             }
@@ -2578,7 +2639,7 @@ class company {
             $courserecord['courseid'] = $courseid;
             $courserecord['companyid'] = $companyid;
             if (!$DB->insert_record('company_course', $courserecord)) {
-                print_error(get_string('cantinsertdepartmentcoursesdb',
+                throw new moodle_exception(get_string('cantinsertdepartmentcoursesdb',
                                        'block_iomad_company_admin'));
             }
         }
@@ -2757,7 +2818,7 @@ class company {
         return false;
     }
 
-    public function get_menu_courses($shared = false, $licensed = false, $groups = false, $default = true, $onlylicensed = false) {
+    public function get_menu_courses($shared = false, $licensed = false, $groups = false, $default = true, $onlylicensed = false, $noncompany = false) {
         global $DB;
 
         // Deal with license option.
@@ -2806,6 +2867,17 @@ class company {
             $groupsql = "";
         }
 
+        // Deal with any courses which don't belong to any company.
+        $noncompanysql = "";
+        if ($noncompany) {
+            $noncompanysql = " OR
+                               c.id IN (
+                                  SELECT id FROM {course}
+                                  WHERE id NOT IN (
+                                      SELECT courseid FROM {company_course}
+                                  )
+                              )";
+        }
         // Get the courses.
         $retcourses = $DB->get_records_sql_menu("SELECT c.id, c.fullname
                                                  FROM {course} c
@@ -2818,6 +2890,7 @@ class company {
                                                      WHERE companyid = :companyid
                                                  )
                                                  $sharedsql
+                                                 $noncompanysql
                                                  ORDER BY c.fullname",
                                                  array('companyid' => $this->id,
                                                        'companyid2' => $this->id));
@@ -2952,7 +3025,7 @@ class company {
 
         // Write the data to the DB.
         if (!$DB->insert_record('company_course_groups', $grouppivot)) {
-            print_error(get_string('cantcreatecompanycoursegroup', 'block_iomad_company_admin'));
+            throw new moodle_exception(get_string('cantcreatecompanycoursegroup', 'block_iomad_company_admin'));
         }
         return $groupid;
     }
@@ -3408,7 +3481,7 @@ class company {
 
         $context = context_system::instance();
         // If current user is a site admin or they have appropriate capabilities then they can.
-        if (is_siteadmin($USER->id) ||
+        if (is_siteadmin($userid) ||
             iomad::has_capability('block/iomad_company_admin:company_add', $context)) {
             return true;
         }
@@ -3421,7 +3494,18 @@ class company {
                                                            'userid' => $userid))) {
             return true;
         } else {
-            return false;
+            // is the user in a child company?
+            $company = new company($companyid);
+            $children = $company->get_child_companies_recursive();
+            if (!empty($children) &&
+                $DB->get_records_sql("SELECT id FROM {company_users}
+                                      WHERE userid = :userid
+                                      and companyid IN (" . join(',', array_keys($children)) . ")",
+                                      ['userid' => $userid])) {
+                return true;
+            } else {
+                return false;
+            }
         }
         // Shouldn't get here.  Return a false in case.
         return false;
@@ -3624,7 +3708,7 @@ class company {
      *              $user = stdclass();
      *
      **/
-    public function autoenrol($user) {
+    public function autoenrol($user, $due = 0) {
         global $DB, $CFG, $SESSION, $SITE, $OUTPUT;
 
         // Did we get passed a user id?
@@ -3674,7 +3758,7 @@ class company {
                         // Create an event.
                         $eventother = array('licenseid' => $newlicense->licenseid,
                                             'issuedate' => time(),
-                                            'duedate' => 0);
+                                            'duedate' => $due);
                         $event = \block_iomad_company_admin\event\user_license_assigned::create(array('context' => context_course::instance($course->id),
                                                                                                       'objectid' => $newlicense->id,
                                                                                                       'courseid' => $course->id,
@@ -3685,7 +3769,7 @@ class company {
                         $errors .= format_string($course->fullname) . " ";
                     }
                 } else {
-                    company_user::enrol($user, array($course->id));
+                    company_user::enrol($user, array($course->id), $this->id, false, false, $due);
                 }
             }
         }
@@ -3801,6 +3885,76 @@ class company {
 
         // default is true as the template may not have been defined outside of defaults.
         return true;
+    }
+
+    /**
+     * Set the company SMTP settings.
+     * @param mailer moodle_php_mailer object
+     *
+     * Returns the same.
+     */
+    public static function set_company_mailer($mailer, $companyid = 0) {
+        global $CFG;
+
+        if (empty($companyid)) {
+            $companyid = iomad::get_my_companyid(context_system::instance(), false);
+        }
+
+        // Did we get anything?
+        if (empty($companyid)) {
+            return $mailer;
+        }
+
+        // Deal withe the potential settings that could be changed.
+        $possiblesettings = ['type' => 'smtphosts',
+                             'SMTPDebug' => 'debugsmtp',
+                             'SMTPSecure' => 'smtpsecure',
+                             'AuthType' => 'smtpauthtype',
+                             'smtpoauthservice' => 'smtpoauthservice',
+                             'Username' => 'smtpuser',
+                             'Password' => 'smtppass',
+                             'smtpmaxbulk' => 'smtpmaxbulk',
+                             'noreplyaddress' => 'noreplyaddress',
+                             'DKIM_selector' => 'emaildkimselector'];
+
+        // Make the changes.
+        foreach ($possiblesettings as $name => $possiblesetting) {
+            $settingfield = $possiblesetting . $companyid;
+            if (!empty($CFG->$settingfield)) {
+                if ($name != 'type' ) {
+                    if ($name == 'Username' && !(empty($possiblesetting) || empty($CFG->smtpuser))) {
+                        $mailer->SMTPAuth = true;
+                    }
+                    $mailer->$name = $CFG->$settingfield;
+                } else {
+                    if ($possiblesetting == 'qmail') {
+                        // Use Qmail system.
+                        $mailer->isQmail();
+
+                    } else if (empty($possiblesetting) && empty($CFG->smpthosts)) {
+                        // Use PHP mail() = sendmail.
+                        $mailer->isMail();
+
+                    } else {
+                        // Use SMTP directly.
+                        $mailer->isSMTP();
+                        if (!empty($CFG->debugsmtp) && (!empty($CFG->debugdeveloper))) {
+                            $mailer->SMTPDebug = 3;
+                        }
+
+                        // Specify mail server.
+                        $mailer->Host = $CFG->$settingfield;
+                    }
+                }
+            }
+        }
+
+        if (empty($mailer->noreplyaddress)) {
+            $noreplyaddressdefault = 'noreply@' . get_host_from_url($CFG->wwwroot);
+            $mailer->noreplyaddress = empty($CFG->noreplyaddress) ? $noreplyaddressdefault : $CFG->noreplyaddress;
+        }
+
+        return $mailer;
     }
 
     /***  Event Handlers  ***/
@@ -4143,6 +4297,55 @@ class company {
             iomad_commerce::update_user($user, $company->id);
         }
 
+        // Check if we are assigning department by profile field.
+        if (!empty($CFG->iomad_sync_department) &&
+            $CFG->iomad_sync_department == 2) {
+            // Check if there is a department with the name given.
+            $current = $DB->count_records('department', ['company' => $company->id, 'name' => $user->department]);
+            if ($current == 1) {
+                // Assign them to the department.
+                $department = $DB->get_record('department', ['company' => $company->id, 'name' => $user->department]);
+                if ($currentdepartments = $DB->get_records('company_users', ['companyid' => $company->id, 'userid' => $user->id])) {
+                    // We only do anything if they are in one department.
+                    if (count($currentdepartments) == 1) {
+                        foreach ($currentdepartments as $currentdepartment) {
+                            // Only move them if they are not a company manager.
+                            if ($currentdepartment->managertype != 1) {
+                                $DB->set_field('company_users', 'departmentid', $department->id, ['id' => $currentdepartment->id]);
+                            }
+                        }
+                    }
+                } else {
+                    // Assign them to this department as they aren't in any yet.
+                    self::assign_user_to_department($department->id, $user->id);
+                }
+            } else if ($current == 0) {
+                // Department doesn't exist yet. Create it!
+                $shortname = str_replace(' ', '-', $user->department);
+                $shortname = preg_replace('/[^A-Za-z0-9\-]/', '', $shortname);
+                // Shortname cap is 32 chars.
+                $shortname = substr($shortname,0,32);
+                $topdepartment = self::get_company_parentnode($company->id);
+                self::create_department(0, $company->id, $user->department, $shortname, $topdepartment->id);
+                // Get the new department.
+                $department = $DB->get_record('department', ['company' => $company->id, 'shortname' => $shortname]);
+                if ($currentdepartments = $DB->get_records('company_users', ['companyid' => $company->id, 'userid' => $user->id])) {
+                    // We only do anything if they are in one department.
+                    if (count($currentdepartments) == 1) {
+                        foreach ($currentdepartments as $currentdepartment) {
+                            // Only move them if they are not a company manager.
+                            if ($currentdepartment->managertype != 1) {
+                                $DB->set_field('company_users', 'departmentid', $department->id, ['id' => $currentdepartment->id]);
+                            }
+                        }
+                    }
+                } else {
+                    // Assign them to this department as they aren't in any yet.
+                    self::assign_user_to_department($department->id, $user->id);
+                }
+            }
+        }
+
         return true;
     }
 
@@ -4396,6 +4599,7 @@ class company {
         $license = new stdclass();
         $license->length = $licenserecord->validlength;
         $license->valid = date($CFG->iomad_date_format, $licenserecord->expirydate);
+        $license->startdate = date($CFG->iomad_date_format, $licenserecord->startdate);
 
         if (!$noemail) {
         // Send out the email.
@@ -4409,6 +4613,27 @@ class company {
 
         // Update the license usage.
         self::update_license_usage($licenseid);
+
+        // Check if we need to warn about usage.
+        $licenserec = $DB->get_record('companylicense', ['id' => $licenseid]);
+        if ($licenserec->used/$licenserec->allocation * 100 > 90) {
+            // Get the company managers.
+            if ($companymanagers = $DB->get_records_sql("SELECT u.*
+                                                         FROM {user} u
+                                                         JOIN {company_users} cu ON (u.id = cu.userid)
+                                                         WHERE u.deleted = 0
+                                                         AND u.suspended = 0
+                                                         AND cu.companyid = :companyid
+                                                         AND cu.managertype =1",
+                                                        ['companyid' => $company->id])) {
+                foreach ($companymanagers as $companymanager) {
+                    EmailTemplate::send('licensepoolwarning', array('course' => $course,
+                                                                    'company' => $company,
+                                                                    'user' => $companymanager,
+                                                                    'license' => $license));
+                }
+            }
+        }
 
         // Is this an immediate license?
         if (!empty($licenserecord->instant)) {
@@ -4747,10 +4972,20 @@ class company {
         // Deal with any children.
         if ($children = $DB->get_records('companylicense', array('parentid' => $licenseid))) {
             foreach ($children as $child) {
-                // Clear down all of them initially.
-                $DB->delete_records('companylicense_courses', array('licenseid' => $child->id));
-                if (!empty($currentcourses)) {
-                    // Add the course license allocations.
+                // If not a program of courses, check if child courses are all still present in parent courses
+                if (!empty($currentcourses) && empty($licenserecord->program)) {
+                    $childcourses = $DB->get_records('companylicense_courses', array('licenseid' => $child->id), '', 'courseid');
+                    $childparentcourses = array_intersect_key($childcourses, $currentcourses);
+                    // Clear down all of them initially.
+                    $DB->delete_records('companylicense_courses', array('licenseid' => $child->id));
+                    foreach ($childparentcourses as $selectedcourse) {
+                        $DB->insert_record('companylicense_courses', array('licenseid' => $child->id, 'courseid' => $selectedcourse->courseid));
+                    }
+                }
+                // If parent license is for a program of courses, overwrite child license with parent course license allocations.
+                if (!empty($currentcourses) && !empty($licenserecord->program)) {
+                    // Clear down all of them initially.
+                    $DB->delete_records('companylicense_courses', array('licenseid' => $child->id));
                     foreach ($currentcourses as $selectedcourse) {
                         $DB->insert_record('companylicense_courses', array('licenseid' => $child->id, 'courseid' => $selectedcourse->courseid));
                     }

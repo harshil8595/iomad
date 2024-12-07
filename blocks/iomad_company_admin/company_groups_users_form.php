@@ -54,7 +54,7 @@ $urlparams = array();
 if ($returnurl) {
     $urlparams['returnurl'] = $returnurl;
 }
-$companylist = new moodle_url('/my', $urlparams);
+$companylist = new moodle_url($CFG->wwwroot .'/blocks/iomad_company_admin/index.php', $urlparams);
 
 $linktext = get_string('assigncoursegroups', 'block_iomad_company_admin');
 
@@ -96,7 +96,7 @@ if (!empty($groupform) && $groupform->is_cancelled()) {
 
     // Check the department is valid.
     if (!empty($departmentid) && !company::check_valid_department($companyid, $departmentid)) {
-        print_error('invaliddepartment', 'block_iomad_company_admin');
+        throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
     }
 
     $courseform->display();

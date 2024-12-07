@@ -59,15 +59,16 @@ admin_externalpage_setup('auth_iomadoidc_application');
 
 require_admin();
 
-$iomadoidcconfig = get_config('auth_iomadoidc' . $postfix);
+$iomadoidcconfig = get_config('auth_iomadoidc');
 
 $form = new application(null, ['iomadoidcconfig' => $iomadoidcconfig]);
 
 $formdata = [];
 foreach (['idptype', 'clientid', 'clientauthmethod', 'clientsecret', 'clientprivatekey', 'clientcert', 'tenantnameorguid',
     'authendpoint', 'tokenendpoint', 'iomadoidcresource', 'iomadoidcscope'] as $field) {
-    if (!empty($iomadoidcconfig->$field . $postfix)) {
-        $formdata[$field] = $iomadoidcconfig->$field;
+    $opname = $field . $postfix;
+    if (isset($iomadoidcconfig->$opname)) {
+        $formdata[$field] = $iomadoidcconfig->$opname;
     }
 }
 

@@ -106,7 +106,7 @@ echo $output->header();
 
 // Check the department is valid.
 if (!empty($departmentid) && !company::check_valid_department($companyid, $departmentid)) {
-    print_error('invaliddepartment', 'block_iomad_company_admin');
+    throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
 }
 
 if ($threadsform->is_cancelled() || $usersform->is_cancelled() ||
@@ -114,7 +114,7 @@ if ($threadsform->is_cancelled() || $usersform->is_cancelled() ||
     if ($returnurl) {
         redirect($returnurl);
     } else {
-        redirect(new moodle_url('/my'));
+        redirect(new moodle_url($CFG->wwwroot .'/blocks/iomad_company_admin/index.php'));
     }
 } else {
     echo $output->display_tree_selector($company, $parentlevel, $linkurl, $params, $departmentid);

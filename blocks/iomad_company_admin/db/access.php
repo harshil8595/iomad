@@ -206,6 +206,15 @@ $capabilities = array(
         ),
     ),
 
+    'block/iomad_company_admin:company_edit_restricted' => array(
+
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_BLOCK,
+        'archetypes' => array(
+            'clientadministrator' => CAP_ALLOW
+        ),
+    ),
+
     'block/iomad_company_admin:company_delete' => array(
 
         'captype' => 'write',
@@ -284,6 +293,15 @@ $capabilities = array(
         ),
     ),
 
+    'block/iomad_company_admin:delegatecourse' => array(
+
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_BLOCK,
+        'archetypes' => array(
+            'clientadministrator' => CAP_ALLOW
+        ),
+    ),
+
     'block/iomad_company_admin:deletecourses' => array(
 
         'captype' => 'write',
@@ -303,6 +321,24 @@ $capabilities = array(
     ),
 
     'block/iomad_company_admin:destroycourses' => array(
+
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_BLOCK,
+        'archetypes' => array(
+            'clientadministrator' => CAP_ALLOW
+        ),
+    ),
+    
+    'block/iomad_company_admin:hideshowcourses' => array(
+
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_BLOCK,
+        'archetypes' => array(
+            'clientadministrator' => CAP_ALLOW
+        ),
+    ),
+    
+    'block/iomad_company_admin:hideshowallcourses' => array(
 
         'captype' => 'write',
         'contextlevel' => CONTEXT_BLOCK,
@@ -701,5 +737,33 @@ $capabilities = array(
             'clientadministrator' => CAP_ALLOW
         ),
     ),
+
+    'block/iomad_company_admin:downloadcertificates' => array(
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_BLOCK,
+        'archetypes' => array(
+            'companymanager' => CAP_ALLOW,
+            'companydepartmentmanager' => CAP_ALLOW,
+            'clientadministrator' => CAP_ALLOW
+        ),
+    ),
+
+    'block/iomad_company_admin:downloadmycertificates' => array(
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_BLOCK,
+        'archetypes' => array(
+            'user' => CAP_ALLOW
+        ),
+    ),
+    
+    'block/iomad_company_admin:editpubliclocation' => array(
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_BLOCK,
+        'archetypes' => array(
+            'clientadministrator' => CAP_ALLOW
+        ),
+    ),
+    
+
 );
 

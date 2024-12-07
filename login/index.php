@@ -65,7 +65,7 @@ if (isloggedin() && !isguestuser() && !empty($SESSION->wantsurl)) {
 
 // Check if the company being passed is valid.
 if (!empty($wantedcompanyid) && !$company = $DB->get_record('company', array('id'=> $wantedcompanyid, 'shortname'=>$wantedcompanyshort))) {
-    print_error(get_string('unknown_company', 'local_iomad_signup'));
+    throw new moodle_exception(get_string('unknown_company', 'local_iomad_signup'));
 } else if (!empty($wantedcompanyid)) {
     // Set the page theme.
     $SESSION->currenteditingcompany = $company->id;
@@ -87,7 +87,8 @@ $errormsg = '';
 $errorcode = 0;
 
 // IOMAD - Set the theme if the server hostname matches one of ours.
-if ($company = $DB->get_record('company', array('hostname' => $_SERVER["SERVER_NAME"]))) {
+if ($DB->get_manager()->table_exists('company') &&
+    $company = $DB->get_record('company', array('hostname' => $_SERVER["SERVER_NAME"]))) {
     $hascompanybyurl = true;
     // set the current editing company to be this.
     $SESSION->currenteditingcompany = $company->id;
@@ -258,25 +259,37 @@ if ($frm and isset($frm->username)) {                             // Login WITH 
         }
 
         // Check if the company in the session is still correct.
-        if (!has_capability('block/iomad_company_admin:company_view_all', context_system::instance()) &&
-            !empty($SESSION->currenteditingcompany)) {
-            $currenteditingcompany = $SESSION->currenteditingcompany;
-            $currentcompany = $SESSION->company;
-            if ($mycompany = company::by_userid($user->id, true)) {
-                if ($currenteditingcompany != $mycompany->id) {
-                    $mycompanyrec = $DB->get_record('company', array('id' => $mycompany->id));
-                    if ($mycompanyrec->hostname != $currentcompany->hostname) {
-                        if (empty($mycompanyrec->hostname)) {
-                            $companyurl = $CFG->wwwrootdefault;
-                        } else {
-                            $companyurl = $_SERVER['REQUEST_SCHEME'] . "://" . $mycompanyrec->hostname;
+        if ($DB->get_manager()->table_exists('company') &&
+            !has_capability('block/iomad_company_admin:company_view_all', context_system::instance())) {
+            $currenteditingcompany = 0;
+            $currentcompany = [];
+            if (!empty($SESSION->currenteditingcompany)) {
+                $currenteditingcompany = $SESSION->currenteditingcompany;
+                $currentcompany = $SESSION->company;
+            }
+            if (empty($currenteditingcompany)  ||
+                !company::check_valid_user($currenteditingcompany, $user->id)) {
+                // Check if the user is in multiple companies.
+                if ($DB->count_records_sql("SELECT COUNT(DISTINCT companyid) FROM {company_users} WHERE userid = :userid", ['userid' => $user->id]) == 1) {
+                    if ($mycompany = company::by_userid($user->id, true)) {
+                        $mycompanyrec = $DB->get_record('company', ['id' => $mycompany->id]);
+                        if ($currenteditingcompany != $mycompany->id) {
+                            if (!empty($currentcompany)) {
+                                $currentcompanyobj = new company($currentcompany->id);
+                                $currentwwwroot = $currentcompanyobj->get_wwwroot();
+                            } else {
+                                $currentwwwroot = $CFG->wwwroot;
+                            }
+                            $mywwwroot = $mycompany->get_wwwroot();
+                            if ($mywwwroot != $currentwwwroot) {
+                                $SESSION->currenteditingcompany = $mycompany->id;
+                                $SESSION->company = $mycompanyrec;
+                                $SESSION->theme = $mycompanyrec->theme;
+
+                                redirect ($mywwwroot);
+                            }
                         }
                     }
-                    $SESSION->currenteditingcompany = $mycompany->id;
-                    $SESSION->company = $mycompanyrec;
-                    $SESSION->theme = $mycompanyrec->theme;
-
-                    redirect ($companyurl . '/login/index.php');
                 }
             }
         }
@@ -318,7 +331,7 @@ if ($frm and isset($frm->username)) {                             // Login WITH 
                 $passwordchangeurl = $CFG->wwwroot.'/login/change_password.php';
             }
             $days2expire = $userauth->password_expire($USER->username);
-            $PAGE->set_title("$site->fullname: $loginsite");
+            $PAGE->set_title($loginsite);
             $PAGE->set_heading("$site->fullname");
             if (intval($days2expire) > 0 && intval($days2expire) < intval($userauth->config->expiration_warning)) {
                 echo $OUTPUT->header();
@@ -418,17 +431,6 @@ if (empty($frm->username) && $authsequence[0] != 'shibboleth') {  // See bug 518
     $frm->password = "";
 }
 
-// IOMAD - changes to display the instructions.
-if (!empty($CFG->registerauth) or is_enabled_auth('none') or !empty($CFG->auth_instructions)) {
-    if (!empty($CFG->local_iomad_signup_showinstructions)) {
-        $show_instructions = true;
-    } else {
-        $show_instructions = false;
-    }
-} else {
-    $show_instructions = false;
-}
-
 $potentialidps = array();
 foreach($authsequence as $authname) {
     $authplugin = get_auth_plugin($authname);
@@ -452,7 +454,7 @@ if (!empty($SESSION->loginerrormsg)) {
     redirect(new moodle_url('/login/index.php'));
 }
 
-$PAGE->set_title("$site->fullname: $loginsite");
+$PAGE->set_title($loginsite);
 $PAGE->set_heading("$site->fullname");
 
 echo $OUTPUT->header();

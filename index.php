@@ -53,7 +53,8 @@ $PAGE->set_cacheable(false);
 require_course_login($SITE);
 
 // IOMAD - Set the theme if the server hostname matches one of ours.
-if ($company = $DB->get_record('company', array('hostname' => $_SERVER["SERVER_NAME"]))) {
+if ($DB->get_manager()->table_exists('company') &&
+    $company = $DB->get_record('company', array('hostname' => $_SERVER["SERVER_NAME"]))) {
     $hascompanybyurl = true;
     // set the current editing company to be this.
     $SESSION->currenteditingcompany = $company->id;
@@ -115,7 +116,7 @@ course_view(context_course::instance(SITEID));
 $PAGE->set_pagetype('site-index');
 $PAGE->set_docs_path('');
 $editing = $PAGE->user_is_editing();
-$PAGE->set_title($SITE->fullname);
+$PAGE->set_title(get_string('home'));
 $PAGE->set_heading($SITE->fullname);
 $PAGE->set_secondary_active_tab('coursehome');
 

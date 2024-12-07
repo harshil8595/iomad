@@ -23,6 +23,7 @@
 
 $string['add_template_button'] = 'Override';
 $string['addnewtemplate'] = 'Override a default template';
+$string['addtemplateadhoc'] = 'Add new email template adhoc task';
 $string['applytemplateset'] = 'Apply templateset \'{$a}\' to companies';
 $string['backtocompanytemplates'] = 'Finish editing template set';
 $string['blocktitle'] = 'Email templates';
@@ -146,6 +147,7 @@ $string['advertise_classroom_based_course_name'] = 'Advertise training event';
 $string['user_signed_up_for_event_name'] = 'User training event sign up';
 $string['user_signed_up_for_event_reminder_name'] = 'User training event reminder';
 $string['user_signed_up_for_event_teacher_name'] = 'User training event sign up - teacher';
+$string['user_signed_up_to_waitlist_name'] = 'User training event waiting list sign up';
 $string['user_removed_from_event_name'] = 'User training event cancelled';
 $string['user_removed_from_event_teacher_name'] = 'User training event cancelled - teacher';
 $string['user_removed_from_event_waitlist_name'] = 'User training event removed from waitlist';
@@ -159,7 +161,9 @@ $string['license_removed_name'] = 'User course licese revoked';
 $string['password_update_name'] = 'User password changed';
 $string['completion_warn_user_name'] = 'User course completion warning';
 $string['completion_warn_manager_name'] = 'Manager course completion warning report';
-$string['completion_digest_manager_name'] = 'Manager course completion warning report - digest';
+$string['completion_digest_manager_name'] = 'Manager course completions weekly report - digest';
+$string['expiring_digest_manager_name'] = 'Manager courses expiring weekly warning report - digest';
+$string['warning_digest_manager_name'] = 'Manager courses not completed weekly warning report - digest';
 $string['expiry_warn_user_name'] = 'User training expiry warning';
 $string['expiry_warn_manager_name'] = 'Manager training expiry warning';
 $string['expire_name'] = 'User training expired';
@@ -199,6 +203,7 @@ $string['advertise_classroom_based_course_name_help'] = 'Template sent out when 
 $string['user_signed_up_for_event_name_help'] = 'Template sent out to a user when they sign up for a training event which doesn\'t require manager approval.';
 $string['user_signed_up_for_event_reminder_name_help'] = 'Template sent out to remind a user they are signed up for a training event.';
 $string['user_signed_up_for_event_teacher_name_help'] = 'Template sent out to a teachers when a user has signed up for a training event which doesn\'t require manager approval.';
+$string['user_signed_up_to_waitlist_name_help'] = 'Template sent out to a user when they sign on to the waiting list for a training event.';
 $string['user_removed_from_event_name_help'] = 'Template sent out to a user for confirmation when they have been removed from a training event.';
 $string['user_removed_from_event_teacher_name_help'] = 'Template sent out to teacher when a user has been removed from a training event.';
 $string['user_removed_from_event_waitlist_name_help'] = 'Template sent out to a user for confirmation when they have been removed from a training event waiting list.';
@@ -208,7 +213,9 @@ $string['license_removed_name_help'] = 'Template sent out to a user when a cours
 $string['password_update_name_help'] = 'Template sent out to a user when their password has been changed by a manager.';
 $string['completion_warn_user_name_help'] = 'Template sent out to a user when they have not completed a course in the configured time.';
 $string['completion_warn_manager_name_help'] = 'Template sent out to a manager informing them that a user has not completed a course in the configured time.';
-$string['completion_digest_manager_name_help'] = 'Template sent out to a manager informing them that users have not completed courses in a configured time when the manager emails are sent as a digest.';
+$string['completion_digest_manager_name_help'] = 'Template sent out to a manager informing them of the users that completed courses in the last week. The manager emails are sent as a digest.';
+$string['expiring_digest_manager_name_help'] = 'Template sent out to a manager informing them that users have courses expiring in the next week. The manager emails are sent as a digest.';
+$string['warning_digest_manager_name_help'] = 'Template sent out to a manager informing them that users have not completed courses in the last week. The manager emails are sent as a digest.';
 $string['expiry_warn_user_name_help'] = 'Template sent out to a user when their training in a course is due to expire.';
 $string['expiry_warn_manager_name_help'] = 'Template sent out to managers informing them of users who training is due to expire.';
 $string['expire_name_help'] = 'Template sent out to a user when their training in a course has expired.';
@@ -232,52 +239,52 @@ $string['approved_body'] = '<p>You have been granted access to course {Course_Fu
 $string['course_classroom_approval_subject'] = 'New face to face training event approval';
 $string['course_classroom_approval_body'] = '<p>You have been asked to approve access to the face to face training course {Event_Name} for {Approveuser_FirstName} {Approveuser_LastName} at the following event -</p>
 <br>
-Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
-          {Classroom_City} {Classroom_Postcode}</br>
-</br>
+Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
+          {Classroom_City} {Classroom_Postcode}<br>
+<br>
 <p>please log onto {Site_FullName} ('.$CFG->wwwroot.') to approve or deny this request.</p>';
 
 $string['course_classroom_approved_subject'] = 'Face to face training event approved';
 $string['course_classroom_approved_body'] = '<p>You have been approved access to the face to face training course {Event_Name} at the following event -</p>
-</br>
-Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
+<br>
+Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
           {Classroom_City} {Classroom_Postcode}';
 
 $string['course_classroom_approved_teacher_subject'] = 'User approved to Face to face training event';
 $string['course_classroom_approved_teacher_body'] = '<p>{Approveuser_FirstName} {Approveuser_LastName} has been granted access to the face to face training course {Event_Name} at the following event -</p>
-</br>
-Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
+<br>
+Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
           {Classroom_City} {Classroom_Postcode}';
 
 $string['course_classroom_denied_subject'] = 'Face to face training event approval denied';
 $string['course_classroom_denied_body'] = '<p>Your approval request has been rejected for {Event_Name} at the following event -</p>
-</br>
-Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
+<br>
+Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
           {Classroom_City} {Classroom_Postcode}';
 
 $string['course_classroom_manager_denied_subject'] = 'Face to face training event approval denied by company manager';
 $string['course_classroom_manager_denied_body'] = '<p>The approval request for {Approveuser_FirstName} {Approveuser_LastName} has been rejected by {User_FirstName} {User_LastName} ({User_Email}) for {Event_Name} at the following event -</p>
-</br>
-Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
+<br>
+Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
           {Classroom_City} {Classroom_Postcode}';
 
 $string['course_classroom_approval_request_subject'] = 'New face to face training event approval request sent';
 $string['course_classroom_approval_request_body'] = '<p>You have asked for access to the face to face training course {Event_Name} at the following event -</p>
-</br>
-Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
-          {Classroom_City} {Classroom_Postcode}</br>
+<br>
+Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
+          {Classroom_City} {Classroom_Postcode}<br>
 <p>You will be notified once your manager has approved or denied access.</p>';
 
 $string['courseclassroom_approved_subject'] = 'You have been approved access to {Event_Name}';
@@ -299,7 +306,7 @@ $string['invoice_ordercomplete_body'] = '<p>Dear {User_FirstName} {User_LastName
 
 $string['invoice_ordercomplete_admin_subject'] = 'E-commerce order (invoice {Invoice_Reference})';
 $string['invoice_ordercomplete_admin_body'] = '<p>Dear e-commerce admin</p>
-<p>The following order has just been submitted by {Invoice_FirstName} {Invoice_LastName} of {Invoice_Company}.</br>
+<p>The following order has just been submitted by {Invoice_FirstName} {Invoice_LastName} of {Invoice_Company}.<br>
 An invoice has been sent to them via email.</p>
 
 <p>{Invoice_Itemized}</p>';
@@ -309,9 +316,9 @@ $string['advertise_classroom_based_course_body'] = '<o>This to let you know abou
 <p>{Course_FullName}</p>
 
 <p>It will be in {Classroom_Name}, which is at</p>
-<p>{Classroom_Address}</br>
-{Classroom_City} {Classroom_Postcode}</br>
-{Classroom_Country}</br>
+<p>{Classroom_Address}<br>
+{Classroom_City} {Classroom_Postcode}<br>
+{Classroom_Country}<br>
 
 <p>and has a capacity of {Classroom_Capacity}.</p>
 
@@ -321,10 +328,10 @@ $string['user_signed_up_for_event_body'] = '<p>Dear {User_FirstName},</p>
 
 <p>you have signed up for the face to face training on {Course_FullName} at the following event -</p>
 
-<p>Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
-          {Classroom_City} {Classroom_Postcode}</br>
+<p>Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
+          {Classroom_City} {Classroom_Postcode}<br>
 
 <p>Please ensure you have completed an pre-course tasks required before attendance</p>';
 $string['user_signed_up_for_event_reminder_subject'] = 'Attendance Reminder {Course_FullName}';
@@ -332,10 +339,10 @@ $string['user_signed_up_for_event_reminder_body'] = '<p>Dear {User_FirstName},</
 
 <p>This is to remind you that you have signed up for the face to face training on {Course_FullName} at the following event -</p>
 
-<p>Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
-          {Classroom_City} {Classroom_Postcode}</br>
+<p>Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
+          {Classroom_City} {Classroom_Postcode}<br>
 
 <p>Please ensure you have completed an pre-course tasks required before attendance</p>';
 $string['user_removed_from_event_subject'] = 'Cancellation Notice {Course_FullName}';
@@ -343,48 +350,59 @@ $string['user_removed_from_event_body'] = '<p>Dear {User_FirstName},</p>
 
 <p>you have been marked as no longer attending the face to face training on {Course_FullName} at the following event -</p>
 
-<p>Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
+<p>Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
           {Classroom_City} {Classroom_Postcode}';
 $string['user_signed_up_for_event_teacher_subject'] = 'User attending notice {Course_FullName}';
 $string['user_signed_up_for_event_teacher_body'] = '<p>Dear {User_FirstName},</p>
 
 <p>{Approveuser_FirstName} {Approveuser_LastName} has signed up for the face to face training on {Course_FullName} at the following event -</p>
 
-<p>Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
-          {Classroom_City} {Classroom_Postcode}</br>
+<p>Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
+          {Classroom_City} {Classroom_Postcode}<br>
 
 <p>Please ensure you have completed an pre-course tasks required before attendance</p>';
+$string['user_signed_up_to_waitlist_subject'] = 'Added to waiting list for {Course_FullName}';
+$string['user_signed_up_to_waitlist_body'] = '<p>Dear {User_FirstName},</p>
+
+<p>You have been added to the <b>waiting list</b> for the face-to-face training on {Course_FullName} at the following event:</p>
+
+<p>Time: {Classroom_Time}<br>
+Location: {Classroom_Name}<br>
+Address: {Classroom_Address}<br>
+          {Classroom_City} {Classroom_Postcode}<br>
+
+<p>You do not currently have a confirmed place, but will be informed if this changes.</p>';
 $string['user_removed_from_event_teacher_subject'] = 'User cancellation notice {Course_FullName}';
 $string['user_removed_from_event_teacher_body'] = '<p>Dear {User_FirstName},</p>
 
 <p>{Approveuser_FirstName} {Approveuser_LastName} is no longer attending the face to face training on {Course_FullName} at the following event -</p>
 
-<p>Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
+<p>Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
           {Classroom_City} {Classroom_Postcode}';
 $string['user_removed_from_event_waitlist_subject'] = 'Waitinglist Removal Notice {Course_FullName}';
 $string['user_removed_from_event_waitlist_body'] = '<p>Dear {User_FirstName},</p>
 
 <p>you have been removed from the waitinglist for the face to face training on {Course_FullName} at the following event -</p>
 
-<p>Time : {Classroom_Time}</br>
-Location : {Classroom_Name}</br>
-Address : {Classroom_Address}</br>
+<p>Time : {Classroom_Time}<br>
+Location : {Classroom_Name}<br>
+Address : {Classroom_Address}<br>
           {Classroom_City} {Classroom_Postcode}';
 $string['license_allocated_subject'] = 'Access to course {Course_FullName} granted';
 $string['license_allocated_body'] = '<p>Dear {User_FirstName},</p>
 
-<p>You have been granted access to the online training for {Course_FullName}.  Please visit <a href="{CourseURL}">{CourseURL}</a> to partake in this training.</br>
+<p>You have been granted access to the online training for {Course_FullName}.  Please visit <a href="{CourseURL}">{CourseURL}</a> to partake in this training.<br>
 Once you have entered the course you will have access to it for {License_Length} days.  Unused access will expire after {License_Valid}</p>';
 $string['license_reminder_subject'] = 'Reminder: you have been allocated the course {Course_FullName}';
 $string['license_reminder_body'] = '<p>Dear {User_FirstName},</p>
 
-<p>You have been granted access to the online training for {Course_FullName}.  Please visit <a href="{CourseURL}">{CourseURL}</a> to partake in this training.</br>
+<p>You have been granted access to the online training for {Course_FullName}.  Please visit <a href="{CourseURL}">{CourseURL}</a> to partake in this training.<br>
 Once you have entered the course you will have access to it for {License_Length} days.  Unused access will expire after {License_Valid}</p>';
 $string['license_removed_subject'] = 'Access to course {Course_FullName} removed';
 $string['license_removed_body'] = '<p>Your access to course {Course_FullName} has been revoked.  If you feel this is in error, please contact your training manager</p>';
@@ -408,10 +426,18 @@ $string['completion_warn_manager_body'] = '<p>Dear {User_FirstName},</p>
 <p>the following users have not completed their training within the normal timeframe :</p>
 
 <p>{Course_ReportText}</p>';
-$string['completion_digest_manager_subject'] = 'User completion report';
+$string['completion_digest_manager_subject'] = 'User course completions weekly report';
 $string['completion_digest_manager_body'] = '<p>Dear {User_FirstName},</p>
 <p>the following users have completed their training within the last week :</p>
 
+<p>{Course_ReportText}</p>';
+$string['expiring_digest_manager_subject'] = 'User courses expiring weekly report';
+$string['expiring_digest_manager_body'] = '<p>Dear {User_FirstName},</p>
+<p>The following users have training expiring within the next week:</p>
+<p>{Course_ReportText}</p>';
+$string['warning_digest_manager_subject'] = 'User courses not completed weekly report';
+$string['warning_digest_manager_body'] = '<p>Dear {User_FirstName},</p>
+<p>The following users have not completed their training within the required time limit:</p>
 <p>{Course_ReportText}</p>';
 $string['expiry_warn_user_subject'] = 'Notice: Accreditation in {Course_FullName} will expire soon.';
 $string['expiry_warn_user_body'] = '<p>Dear {User_FirstName},</p>
@@ -433,8 +459,8 @@ $string['user_reset_body'] = '<p>Dear {User_FirstName},</p>
 
 <p>Your user account details are as follows.</p>
 
-<p>username: {User_Username}</br>
-password: {User_Newpassword}</br>
+<p>username: {User_Username}<br>
+password: {User_Newpassword}<br>
 (you will have to change your password when you log in)</p>
 
 <p>Best Regards,</p>
@@ -447,8 +473,8 @@ $string['user_create_body'] = '<p>Dear {User_FirstName},</p>
 and you have been issued with a new temporary password.</p>
 
 <p>Your current login information is now:<p>
-<p>username: {User_Username}</br>
-password: {User_Newpassword}</br>
+<p>username: {User_Username}<br>
+password: {User_Newpassword}<br>
 (you will have to change your password
 when you login for the first time)</p>
 
